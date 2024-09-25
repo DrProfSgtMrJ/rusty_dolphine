@@ -1,4 +1,5 @@
 use crate::register::Registers;
+use crate::memory::MemoryBus;
 
 #[derive(Debug, Clone)]
 pub enum CpuState {
@@ -20,7 +21,8 @@ impl Default for CpuState {
 }
 
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub struct CPU {
     registers: Registers,
+    memory_bus: MemoryBus,
 }
