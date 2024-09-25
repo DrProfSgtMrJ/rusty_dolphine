@@ -1,3 +1,4 @@
+use core::fmt;
 use std::ops::BitAnd;
 
 use bitflags::{bitflags, Flags};
@@ -10,55 +11,55 @@ bitflags! {
 
         // Sign flag (0 = positive, 1 = negative)
         // 31 bit
-        const N = 1;
+        const N = 1 << 31;
 
         // Zero flag (0 = Not zero, 1 = zero)
         // 30 bit
-        const Z = 1;
+        const Z = 1 << 30;
 
         // Carry flag (0 = No carry, 1 = carry)
         // 29 bit
-        const C = 1;
+        const C = 1 << 29;
 
         // Overflow flag (0 = No overflow, 1 = overflow)
         // 28 bit
-        const V = 1;
+        const V = 1 << 28;
 
         // Sticky overflow flag : ARMv5TE and above
         // 27 bit
-        const Q = 1;
+        const Q = 1 << 27;
 
         // Reserved (DO NOT CHANGE MANUALLY)
         // 26-25 bits
-        const RESERVED = 0b11;
+        const RESERVED = 0b11 << 25;
 
         // Jazelle Bytecode instructions (if supported)
         // 24 bit
-        const J = 1;
+        const J = 1 << 24;
 
         // Reserved (DO NOT CHANGE MANUALLY)
         // 23-10 bits
-        const RESERVED2 = 0b11111111111;
+        const RESERVED2 = 0b11111111111 << 10;
 
         // Big Endian mode (0 = Little Endian, 1 = Big Endian)
         // 9 bit
-        const E = 1; 
+        const E = 1 << 9; 
 
         // Abort disable (1 = disable imprecise data aborts) (ARM11 only)
         // 8 bit
-        const A = 1;
+        const A = 1 << 8;
 
         // IRQ disable (1 = disable IRQs)
         // 7 bit
-        const I = 1;
+        const I = 1 << 7;
 
         // FIQ disable (1 = disable FIQs)
         // 6 bit
-        const F = 1;
+        const F = 1 << 6;
 
         // State bit (0 = ARM, 1 = THUMB)
         // 5 bit
-        const T = 1;
+        const T = 1 << 5;
 
         // Mode bits
         // 4-0 bits
@@ -162,5 +163,27 @@ impl CPSR {
             CpuState::THUMB => self.set(CPSR::T, true),
             _ => {}
         }
+    }
+}
+
+impl fmt::Display for CPSR {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "CPSR {{\n")?;
+        write!(f, "    N (Sign flag): {}\n", if self.contains(CPSR::N) { 1 } else { 0 })?;
+        write!(f, "    Z (Zero flag): {}\n", if self.contains(CPSR::Z) { 1 } else { 0 })?;
+        write!(f, "    C (Carry flag): {}\n", if self.contains(CPSR::C) { 1 } else { 0 })?;
+        write!(f, "    V (Overflow flag): {}\n", if self.contains(CPSR::V) { 1 } else { 0 })?;
+        write!(f, "    Q (Sticky overflow flag): {}\n", if self.contains(CPSR::Q) { 1 } else { 0 })?;
+        write!(f, "    J (Jazelle Bytecode): {}\n", if self.contains(CPSR::J) { 1 } else { 0 })?;
+        write!(f, "    E (Endian mode): {}\n", if self.contains(CPSR::E) { 1 } else { 0 })?;
+        write!(f, "    A (Abort disable): {}\n", if self.contains(CPSR::A) { 1 } else { 0 })?;
+        write!(f, "    I (IRQ disable): {}\n", if self.contains(CPSR::I) { 1 } else { 0 })?;
+        write!(f, "    F (FIQ disable): {}\n", if self.contains(CPSR::F) { 1 } else { 0 })?;
+        write!(f, "    T (State bit): {}\n", if self.contains(CPSR::T) { 1 } else { 0 })?;
+        write!(f, "    M (Mode bits): {:05b}\n", self.bits() & CPSR::M.bits())?;
+        write!(f, "    Full CPSR Value: {:032b}\n", self.bits())?;
+        write!(f, "}}")?;
+
+        Ok(())
     }
 }

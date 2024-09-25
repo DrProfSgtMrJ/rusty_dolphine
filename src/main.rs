@@ -1,7 +1,6 @@
 mod cpu;
-mod register;
-mod cpsr;
 mod memory;
+mod register;
 
 fn main() {
     println!("Hello, world!");

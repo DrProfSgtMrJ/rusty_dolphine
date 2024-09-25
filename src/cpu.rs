@@ -1,5 +1,5 @@
-use crate::register::Registers;
 use crate::memory::MemoryBus;
+use crate::register::RegisterSet;
 
 #[derive(Debug, Clone)]
 pub enum CpuState {
@@ -23,6 +23,6 @@ impl Default for CpuState {
 
 #[derive(Debug, Default)]
 pub struct CPU {
-    registers: Registers,
+    register_set: RegisterSet,
     memory_bus: MemoryBus,
 }
