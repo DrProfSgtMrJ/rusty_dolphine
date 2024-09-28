@@ -1,11 +1,10 @@
 use core::fmt;
-use std::ops::BitAnd;
 
 use bitflags::{bitflags, Flags};
 
 use crate::cpu::CpuState;
 
-use super::{NormalRegister, Register, RegisterError};
+use super::RegisterError;
 
 bitflags! {
     #[derive(Debug, Clone, Default)]
@@ -187,34 +186,5 @@ impl fmt::Display for CPSR {
         write!(f, "}}")?;
 
         Ok(())
-    }
-}
-
-impl Register for CPSR {
-    fn read(&self, buf: &mut u32) -> Result<(), RegisterError> {
-        *buf = self.bits();
-        Ok(())
-    }
-
-    fn write(&mut self, buf: &u32) -> Result<(), RegisterError> {
-        match CPSR::from_bits(*buf) {
-            Some(cpsr) => {
-                *self = cpsr; 
-                return Ok(());
-            },
-            None => {
-                return Err(RegisterError::InvalidCPSR(*buf))
-            }
-        }
-    }
-
-    fn move_to(&self, other: &mut dyn Register) -> Result<(), RegisterError> {
-        let mut buf = 0;
-        self.read(&mut buf)?;
-        other.write(&buf)
-    }
-
-    fn clear(&mut self) -> Result<(), RegisterError> {
-        self.write(&0)
     }
 }

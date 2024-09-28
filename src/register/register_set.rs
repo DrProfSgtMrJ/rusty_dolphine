@@ -1,13 +1,13 @@
 use core::fmt;
 use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
 
-use super::{Mode, NormalRegister, RegisterError, CPSR};
+use super::{Mode, RegisterError, CPSR};
 
 
 #[derive(Debug, Clone, Default)]
 pub struct RegisterSet {
     // name -> register
-    registers: HashMap<String, Rc<RefCell<NormalRegister>>>,
+    pub registers: HashMap<String, Rc<RefCell<u32>>>,
     pub cpsr: Rc<RefCell<CPSR>>,
     pub spsr: Rc<RefCell<CPSR>>
 }
@@ -17,7 +17,7 @@ impl RegisterSet {
         RegisterSetBuilder::default()
     }
 
-    pub fn get(&self, name: String) -> Option<Rc<RefCell<NormalRegister>>> {
+    pub fn get(&self, name: String) -> Option<Rc<RefCell<u32>>> {
         match self.registers.get(&name) {
             Some(value) => Some(value.clone()),
             None => None
@@ -42,7 +42,7 @@ pub struct RegisterSetBuilder {
 
 impl RegisterSetBuilder {
 
-    pub fn with_register(&mut self, name: String, register: Rc<RefCell<NormalRegister>>) -> Result<&mut Self, RegisterError> {
+    pub fn with_register(&mut self, name: String, register: Rc<RefCell<u32>>) -> Result<&mut Self, RegisterError> {
         if self.register_set.registers.insert(name.clone(), register.clone()).is_some() {
             return Err(RegisterError::DuplicateRegister(name));
         }
@@ -67,7 +67,7 @@ impl RegisterSetBuilder {
 
 #[derive(Debug, Default, Clone)]
 pub struct RegisterMap {
-    register_sets: HashMap<Mode, RegisterSet>
+    pub register_sets: HashMap<Mode, RegisterSet>
 }
 
 

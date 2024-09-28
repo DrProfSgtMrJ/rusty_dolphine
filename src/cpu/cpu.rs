@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{memory::MemoryBus, register::{CPSR, NormalRegister, RegisterError, RegisterMap, RegisterSet, Mode}};
+use crate::{memory::MemoryBus, register::{CPSR, RegisterError, RegisterMap, RegisterSet, Mode}};
 
 use super::{CpuError, REGISTER_0, REGISTER_1, REGISTER_10, REGISTER_10_FIQ, REGISTER_11, REGISTER_11_FIQ, REGISTER_12, REGISTER_12_FIQ, REGISTER_13, REGISTER_13_ABT, REGISTER_13_FIQ, REGISTER_13_IRQ, REGISTER_13_SVC, REGISTER_13_UND, REGISTER_14, REGISTER_14_ABT, REGISTER_14_FIQ, REGISTER_14_IRQ, REGISTER_14_SVC, REGISTER_14_UND, REGISTER_15, REGISTER_2, REGISTER_3, REGISTER_4, REGISTER_5, REGISTER_6, REGISTER_7, REGISTER_8, REGISTER_8_FIQ, REGISTER_9, REGISTER_9_FIQ};
 
@@ -47,24 +47,24 @@ pub fn init_gba_registers() -> Result<RegisterMap, RegisterError> {
     let spsr = Rc::new(RefCell::new(CPSR::default()));
     // General purpose registers: r0 - r14
     let mut system_register_builder = RegisterSet::builder();
-    let r0 = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r1 = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r2 = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r3 = Rc::new(RefCell::new(NormalRegister::new( 0)));
-    let r4 = Rc::new(RefCell::new(NormalRegister::new( 0)));
-    let r5 = Rc::new(RefCell::new(NormalRegister::new( 0)));
-    let r6 = Rc::new(RefCell::new(NormalRegister::new( 0)));
-    let r7 = Rc::new(RefCell::new(NormalRegister::new( 0)));
-    let r8 = Rc::new(RefCell::new(NormalRegister::new( 0)));
-    let r9 = Rc::new(RefCell::new(NormalRegister::new( 0)));
-    let r10 = Rc::new(RefCell::new(NormalRegister::new( 0)));
-    let r11 = Rc::new(RefCell::new(NormalRegister::new( 0)));
-    let r12 = Rc::new(RefCell::new(NormalRegister::new( 0)));
-    let r13 = Rc::new(RefCell::new(NormalRegister::new( 0)));
-    let r14 = Rc::new(RefCell::new(NormalRegister::new( 0)));
+    let r0 = Rc::new(RefCell::new(0));
+    let r1 = Rc::new(RefCell::new(0));
+    let r2 = Rc::new(RefCell::new(0));
+    let r3 = Rc::new(RefCell::new(0));
+    let r4 = Rc::new(RefCell::new(0));
+    let r5 = Rc::new(RefCell::new(0));
+    let r6 = Rc::new(RefCell::new(0));
+    let r7 = Rc::new(RefCell::new(0));
+    let r8 = Rc::new(RefCell::new(0));
+    let r9 = Rc::new(RefCell::new(0));
+    let r10 = Rc::new(RefCell::new(0));
+    let r11 = Rc::new(RefCell::new(0));
+    let r12 = Rc::new(RefCell::new(0));
+    let r13 = Rc::new(RefCell::new(0));
+    let r14 = Rc::new(RefCell::new(0));
 
     // r15 = PC
-    let r15 = Rc::new(RefCell::new(NormalRegister::new( 0)));
+    let r15 = Rc::new(RefCell::new(0));
 
     let system_registers = system_register_builder
         .with_register(REGISTER_0.to_string(), r0.clone())?
@@ -90,13 +90,13 @@ pub fn init_gba_registers() -> Result<RegisterMap, RegisterError> {
     // FIQ registers: r8 - r14
     let mut fiq_register_builder = RegisterSet::builder();
     let spsr_fiq = Rc::new(RefCell::new(CPSR::default()));
-    let r8_fiq = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r9_fiq = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r10_fiq = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r11_fiq = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r12_fiq = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r13_fiq = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r14_fiq = Rc::new(RefCell::new(NormalRegister::new(0)));
+    let r8_fiq = Rc::new(RefCell::new(0));
+    let r9_fiq = Rc::new(RefCell::new(0));
+    let r10_fiq = Rc::new(RefCell::new(0));
+    let r11_fiq = Rc::new(RefCell::new(0));
+    let r12_fiq = Rc::new(RefCell::new(0));
+    let r13_fiq = Rc::new(RefCell::new(0));
+    let r14_fiq = Rc::new(RefCell::new(0));
 
     let fiq_registers = fiq_register_builder
         .with_register(REGISTER_0.to_string(), r0.clone())?
@@ -122,8 +122,8 @@ pub fn init_gba_registers() -> Result<RegisterMap, RegisterError> {
     // Supervisor registers: r13-r14
     let mut supervisor_register_builder = RegisterSet::builder();
     let spsr_svc = Rc::new(RefCell::new(CPSR::default()));
-    let r13_svc = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r14_svc = Rc::new(RefCell::new(NormalRegister::new(0)));
+    let r13_svc = Rc::new(RefCell::new(0));
+    let r14_svc = Rc::new(RefCell::new(0));
     let supervisor_registers = supervisor_register_builder
         .with_register(REGISTER_0.to_string(), r0.clone())?
         .with_register(REGISTER_1.to_string(), r1.clone())?
@@ -148,8 +148,8 @@ pub fn init_gba_registers() -> Result<RegisterMap, RegisterError> {
     // Abort registers: r13-r14
     let mut abort_register_builder = RegisterSet::builder();
     let spsr_abt = Rc::new(RefCell::new(CPSR::default()));
-    let r13_abt = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r14_abt = Rc::new(RefCell::new(NormalRegister::new(0)));
+    let r13_abt = Rc::new(RefCell::new(0));
+    let r14_abt = Rc::new(RefCell::new(0));
     let abort_registers = abort_register_builder
         .with_register(REGISTER_0.to_string(), r0.clone())?
         .with_register(REGISTER_1.to_string(), r1.clone())?
@@ -173,8 +173,8 @@ pub fn init_gba_registers() -> Result<RegisterMap, RegisterError> {
 
     let mut irq_register_builder = RegisterSet::builder();
     let spsr_irq = Rc::new(RefCell::new(CPSR::default()));
-    let r13_irq = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r14_irq = Rc::new(RefCell::new(NormalRegister::new(0)));
+    let r13_irq = Rc::new(RefCell::new(0));
+    let r14_irq = Rc::new(RefCell::new(0));
     let irq_registers = irq_register_builder
         .with_register(REGISTER_0.to_string(), r0.clone())?
         .with_register(REGISTER_1.to_string(), r1.clone())?
@@ -199,8 +199,8 @@ pub fn init_gba_registers() -> Result<RegisterMap, RegisterError> {
 
     let mut und_register_builder = RegisterSet::builder();
     let spsr_und = Rc::new(RefCell::new(CPSR::default()));
-    let r13_und = Rc::new(RefCell::new(NormalRegister::new(0)));
-    let r14_und = Rc::new(RefCell::new(NormalRegister::new(0)));
+    let r13_und = Rc::new(RefCell::new(0));
+    let r14_und = Rc::new(RefCell::new(0));
     let und_registers = und_register_builder
         .with_register(REGISTER_0.to_string(), r0.clone())?
         .with_register(REGISTER_1.to_string(), r1.clone())?
@@ -232,13 +232,13 @@ pub fn init_gba_registers() -> Result<RegisterMap, RegisterError> {
         .with_registers(Mode::UNDEFINED, und_registers)?
         .build();
 
-    println!("Register map: {:?}", register_map);
     Ok(register_map)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::register::Register;
+
+    use crate::register::{read_register, write_register};
 
     use super::*;
 
@@ -246,80 +246,34 @@ mod tests {
     fn test_gba_register_map() {
 
         match init_gba_registers() {
-            Ok(register_map) => {
-                // Modifies r15 in system mode
-                match register_map.get(Mode::SUPERVISOR) {
-                    Some(reg_set) => {
-                        match reg_set.get(REGISTER_15.to_string()) {
-                            Some(reg) => {
-                                let buf: u32 = 500;
-                                let _ = reg.borrow_mut().write(&buf);
-                                let mut new_buf: u32 = 0;
-                                let _ = reg.borrow().read(&mut new_buf).unwrap();
-                                assert_eq!(new_buf, 500);
-                            }
-                            None => assert!(false)
-                        }
-                    }
-                    None => assert!(false)
-                };
-                // checks if r15 is modified in all modes
-                match register_map.get(Mode::FIQ) {
-                    Some(reg_set) => {
-                        match reg_set.get(REGISTER_15.to_string()) {
-                            Some(reg) => {
-                                let mut buf: u32 = 0;
-                                let _ = reg.borrow().read(&mut buf).unwrap();
-                                assert_eq!(buf, 500);
-                            }
-                            None => assert!(false)
-                        }
-                    }
-                    None => assert!(false)
-                }
+            Ok(mut register_map) => {
+                let initial_system_value = read_register(&register_map, Mode::SYSTEM, REGISTER_15).unwrap();
+                assert_eq!(initial_system_value, 0);
 
-                match register_map.get(Mode::ABORT) {
-                    Some(reg_set) => {
-                        match reg_set.get(REGISTER_15.to_string()) {
-                            Some(reg) => {
-                                let mut buf: u32 = 0;
-                                let _ = reg.borrow().read(&mut buf).unwrap();
-                                assert_eq!(buf, 500);
-                            }
-                            None => assert!(false)
-                        }
-                    }
-                    None => assert!(false)
-                }
+                let expected_value = 500;
+                write_register(&mut register_map, Mode::SYSTEM, REGISTER_15, expected_value).unwrap();
 
-                match register_map.get(Mode::IRQ) {
-                    Some(reg_set) => {
-                        match reg_set.get(REGISTER_15.to_string()) {
-                            Some(reg) => {
-                                let mut buf: u32 = 0;
-                                let _ = reg.borrow().read(&mut buf).unwrap();
-                                assert_eq!(buf, 500);
-                            }
-                            None => assert!(false)
-                        }
-                    }
-                    None => assert!(false)
-                }
+                let fiq_value = read_register(&register_map, Mode::FIQ, REGISTER_15).unwrap();
+                assert_eq!(fiq_value, expected_value);
 
-                match register_map.get(Mode::UNDEFINED) {
-                    Some(reg_set) => {
-                        match reg_set.get(REGISTER_15.to_string()) {
-                            Some(reg) => {
-                                let mut buf: u32 = 0;
-                                let _ = reg.borrow().read(&mut buf).unwrap();
-                                assert_eq!(buf, 500);
-                            }
-                            None => assert!(false)
-                        }
-                    }
-                    None => assert!(false)
-                }
-            },
+                let other_value = 1000;
+                write_register(&mut register_map, Mode::ABORT, REGISTER_15, other_value).unwrap();
+
+                let system_value = read_register(&register_map, Mode::SYSTEM, REGISTER_15).unwrap();
+                assert_eq!(system_value, other_value);
+
+                let svc_value = read_register(&register_map, Mode::SUPERVISOR, REGISTER_15).unwrap();
+                assert_eq!(svc_value, other_value);
+
+                let abt_value = read_register(&register_map, Mode::ABORT, REGISTER_15).unwrap();
+                assert_eq!(abt_value, other_value);
+
+                let irq_value = read_register(&register_map, Mode::IRQ, REGISTER_15).unwrap();
+                assert_eq!(irq_value, other_value);
+
+                let und_value = read_register(&register_map, Mode::UNDEFINED, REGISTER_15).unwrap();
+                assert_eq!(und_value, other_value);
+            }
             Err(e) => {
                 println!("Error: {:?}", e);
                 assert!(false);}
