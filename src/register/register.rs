@@ -1,88 +1,114 @@
 use core::fmt;
 use std::collections::{HashMap, HashSet};
 
-use super::{Mode, CPSR};
+use super::{Mode, RegisterError, CPSR};
+
+pub trait Register {
+
+    // reads the value
+    fn read(&self, buf: &mut u32) -> Result<(), RegisterError>;
+
+    // writes the value to a register
+    fn write(&mut self, buf: &u32) -> Result<(), RegisterError>;
+
+    // Move the value from one register to another
+    fn move_to(&self, other: &mut dyn Register) -> Result<(), RegisterError>;
+
+    fn clear(&mut self) -> Result<(), RegisterError>;
+}
 
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash)]
-pub struct Register {
-    pub name: String,
+#[derive(Debug, Clone, Default, PartialEq, Hash, Eq)]
+pub struct NormalRegister {
     pub value: u32
 }
 
-impl fmt::Display for Register {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.name, self.value)
+impl NormalRegister {
+    pub fn new(value: u32) -> Self {
+        NormalRegister {
+            value: value
+        }
     }
 }
 
-impl Register {
-    pub fn new(name: String, value: u32) -> Self {
-        Register { name: name, value: value }
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct RegisterSet {
-    // Can be accessed by ANY mode
-    pub general_purpose_registers: HashSet<Register>,
-
-    // Mode specific registers
-    pub banked_registers: HashMap<Mode, HashSet<Register>>,
-
-    pub cpsr: CPSR
-}
-
-impl fmt::Display for RegisterSet {
+impl fmt::Display for NormalRegister {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "General Purpose Registers: \n")?;
-        for gpr in self.general_purpose_registers.iter() {
-            write!(f, "{}\n", gpr)?;
-        }
-
-        write!(f, "Banked Registers: \n")?;
-        for (mode, br) in self.banked_registers.iter() {
-            write!(f, "Mode: {}:\n", mode.to_string())?;
-            for r in br.iter() {
-                write!(f, "{}\n", r)?;
-            }
-        }
-
-        write!(f, "{}", self.cpsr)?;
+        write!(f, "{}", self.value)?;
         Ok(())
-    
+    }
+}
+
+impl Register for NormalRegister {
+    fn read(&self, buf: &mut u32) -> Result<(), RegisterError> {
+        *buf = self.value;
+        Ok(())
+    }
+
+    fn write(&mut self, buf: &u32) -> Result<(), RegisterError> {
+        self.value = *buf; 
+        Ok(())
+    }
+
+    fn move_to(&self, other: &mut dyn Register) -> Result<(), RegisterError> {
+        let mut buf = 0;
+        self.read(&mut buf)?;
+        other.write(&buf)
+    }
+
+    fn clear(&mut self) -> Result<(), RegisterError> {
+        self.write(&0)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{NormalRegister, Register};
+
 
     #[test]
-    fn test_register() {
-        let register = Register::new("r1".to_string(), 0);
+    fn test_read() {
+        let normal_reg = NormalRegister::new(1);
 
-        println!("{}", register);
+        let mut buf: u32 = 0;
+        match normal_reg.read(&mut buf) {
+            Ok(()) => {assert_eq!(buf, 1);}
+            Err(_) => assert!(false)
+        }
     }
 
     #[test]
-    fn test_register_set() {
-        let mut general_purpose: HashSet<Register> = HashSet::new();
-        let mut banked_set: HashSet<Register> = HashSet::new();
-        let mut banked: HashMap<Mode, HashSet<Register>> = HashMap::new();
-        for i in 0..10 {
-            general_purpose.insert(Register::new(i.to_string(), 0));
-            banked_set.insert(Register::new(format!("{}_fiq", i), 0));
+    fn test_write() {
+        let mut normal_reg = NormalRegister::default();
+
+        let buf: u32 = 100;
+
+        match normal_reg.write(&buf) {
+            Ok(()) => {assert_eq!(normal_reg.value, 100);}
+            Err(_) => assert!(false)
         }
+    }
 
-        banked.insert(Mode::FIQ, banked_set);
+    #[test]
+    fn test_move_to() {
+        let mut normal_reg = NormalRegister::default();
+        let other = NormalRegister::new(5);
 
-        let mut cpsr = CPSR::default();
+        match other.move_to(&mut normal_reg) {
+            Ok(()) => {assert_eq!(normal_reg.value, 5);}
+            Err(_) => assert!(false)
+        }
+    }
 
-        cpsr |= CPSR::N | CPSR::J;
-        // Set some flags
-        let reg_set = RegisterSet {general_purpose_registers: general_purpose, banked_registers: banked, cpsr: cpsr};
-        println!("{}", reg_set);
+    #[test]
+    fn test_clear() {
+        let mut reg = NormalRegister::new(5);
+
+        assert_eq!(reg.value, 5);
+
+        match reg.clear() {
+            Ok(()) => {assert_eq!(reg.value, 0);}
+            Err(_) => assert!(false)
+        }
 
     }
 }
