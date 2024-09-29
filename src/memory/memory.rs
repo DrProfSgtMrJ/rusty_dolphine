@@ -40,8 +40,6 @@ pub fn write_memory(memory_bus: &MemoryBus, address: u32, buf: &[u8]) -> Result<
 #[cfg(test)]
 mod tests {
 
-    use crate::memory::memory_bus;
-
     use super::*;
 
     #[test]
@@ -58,6 +56,32 @@ mod tests {
         let middle_of_sector = start_address + size as u32 / 2;
         read_memory(&memory_bus, middle_of_sector, &mut buf_2).unwrap();
         assert_eq!(buf_2, [0, 0]);
+    }
+
+    #[test]
+    fn test_read_memory_invalid_address() {
+        let start_address = 0x00000000;
+        let size = 1024;
+        let memory_bus = MemoryBus::builder().sector_with_size("Test".to_string(), start_address, size).unwrap().build();
+        let mut buf = [0; 4];
+        let invalid_address = start_address + 1 + size as u32;
+        match read_memory(&memory_bus, invalid_address, &mut buf) {
+            Ok(_) => assert!(false),
+            Err(e) => assert_eq!(e, MemoryError::InvalidAddress(invalid_address))
+        }
+    }
+
+    #[test]
+    fn test_write_invalid_address() {
+        let start_address = 0x00000000;
+        let size = 1024;
+        let memory_bus = MemoryBus::builder().sector_with_size("Test".to_string(), start_address, size).unwrap().build();
+        let buf: [u8; 4] = [1, 2, 3, 4];
+        let invalid_address = start_address + 1 + size as u32;
+        match write_memory(&memory_bus, invalid_address, &buf) {
+            Ok(_) => assert!(false),
+            Err(e) => assert_eq!(e, MemoryError::InvalidAddress(invalid_address))
+        }
     }
 
     #[test]
