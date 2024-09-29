@@ -1,17 +1,18 @@
 use core::fmt;
+use std::{cell::RefCell, rc::Rc};
 use super::MemoryError;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MemorySector {
     pub name: String,
     pub start_address: u32,
     pub end_address: u32,
-    pub data: Vec<u8>,
+    pub data: Rc<RefCell<Vec<u8>>>,
 }
 
 impl fmt::Display for MemorySector {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MemorySector: {{ name: {}, start_address: 0x{:08X}, end_address: 0x{:08X}, size: {} }}", self.name, self.start_address, self.end_address, self.data.len())
+        write!(f, "MemorySector: {{ name: {}, start_address: 0x{:08X}, end_address: 0x{:08X}, size: {} }}", self.name, self.start_address, self.end_address, self.size())
     }
 }
 
@@ -24,7 +25,7 @@ impl MemorySector {
                         name: name,
                         start_address: start_address,
                         end_address: end_address - 1,
-                        data: vec![0; size]
+                        data: Rc::new(RefCell::new(vec![0; size]))
                     });
         }
         Err(MemoryError::InvalidSize(size))
@@ -40,7 +41,7 @@ impl MemorySector {
                     name: name,
                     start_address: start_address,
                     end_address: end_address,
-                    data: vec![0; size as usize]
+                    data: Rc::new(RefCell::new(vec![0; size as usize]))
                 }
             );
         }
@@ -48,7 +49,7 @@ impl MemorySector {
     }
 
     pub fn size(&self) -> usize {
-        self.data.len()
+        self.data.borrow().len()
     }
 }
 
@@ -57,7 +58,7 @@ mod tests {
 
     use super::*;
 
-    use super::super::constants::KBYTES;
+    use super::super::gba_constants::KBYTES;
 
     #[test]
     fn test_memory_sector_with_size() {

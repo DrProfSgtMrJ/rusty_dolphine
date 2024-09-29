@@ -5,7 +5,7 @@ use super::{MemoryError, MemorySector};
 
 
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct MemoryBus {
     // Memory map: start_address -> MemorySector
     memory_map: HashMap<u32, MemorySector>
@@ -38,7 +38,7 @@ impl fmt::Display for MemoryBus {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct MemoryBusBuilder {
     memory_bus:  MemoryBus
 }
@@ -78,9 +78,8 @@ impl MemoryBusBuilder {
         Ok(self)
     }
 
-
-    pub fn build(self) -> MemoryBus {
-        self.memory_bus
+    pub fn build(&self) -> MemoryBus {
+        self.memory_bus.clone()
     }
 }
 
@@ -89,7 +88,7 @@ mod tests {
 
 
     use super::*;
-    use super::super::constants::{BIOS_START, BIOS_END, BIOS_SIZE, WRAM_ONBOARD_SIZE, WRAM_ONBOARD_START, WRAM_ONBOARD_END};
+    use super::super::gba_constants::{BIOS_START, BIOS_END, BIOS_SIZE, WRAM_ONBOARD_SIZE, WRAM_ONBOARD_START, WRAM_ONBOARD_END};
 
     #[test]
     fn test_memory_bus_builder_sector_with_size() {

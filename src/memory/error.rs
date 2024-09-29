@@ -5,4 +5,5 @@ pub enum MemoryError {
     InvalidAddresses(u32, u32),
     InvalidSize(usize),
     OverlappingMemorySectors(u32),
+    OutOfBounds(u32),
 }

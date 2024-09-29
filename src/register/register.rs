@@ -18,6 +18,7 @@ pub fn write_register(register_map: &mut RegisterMap, mode: Mode, register_name:
     }
 }
 
+
 pub fn read_register(register_map: &RegisterMap, mode: Mode, register_name: &str) -> Result<u32, RegisterError> {
     match register_map.get(mode.clone()) {
         Some(register_set) => {

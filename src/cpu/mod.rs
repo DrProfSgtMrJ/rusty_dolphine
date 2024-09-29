@@ -1,8 +1,8 @@
 mod cpu;
 mod error;
-mod constants;
+mod gba_cpu;
 
 
-pub use constants::*;
 pub use error::*;
 pub use cpu::*;
+pub use gba_cpu::*;

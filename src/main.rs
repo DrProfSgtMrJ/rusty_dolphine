@@ -6,6 +6,5 @@ mod register;
 
 
 fn main() {
-    init_gba_cpu();    
-    println!("Hello, world!");
+    let gba_cpu = init_gba_cpu().expect("Failed to initialize GBA CPU");    
 }
