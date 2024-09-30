@@ -1,7 +1,6 @@
 use crate::register::{read_register_set, write_register_set, RegisterSet};
 
-use super::{Instruction, InstructionError};
-
+use super::super::{Instruction, InstructionError};
 
 #[derive(Debug, Clone)]
 pub struct AndImmediate {

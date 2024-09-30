@@ -1,9 +1,7 @@
 mod error;
-mod alu_opcode;
-mod alu;
+mod data_processing;
 mod instruction;
 
+pub use data_processing::*;
 pub use error::*;
-pub use alu_opcode::*;
-pub use alu::*;
 pub use instruction::*;
