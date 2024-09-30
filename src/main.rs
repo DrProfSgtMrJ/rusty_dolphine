@@ -1,8 +1,10 @@
-use cpu::init_gba_cpu;
 
 mod cpu;
 mod memory;
 mod register;
+mod gba;
+
+use gba::init_gba_cpu;
 
 
 fn main() {

@@ -1,7 +1,6 @@
+use crate::register::RegisterMap;
+use crate::memory::MemoryBus;
 
-use crate::{memory::{MemoryBus, MemoryError, BIOS, BIOS_END, BIOS_START, IO_REGISTERS, IO_REGISTERS_END, IO_REGISTERS_START, WRAM, WRAM_ONBOARD_END, WRAM_ONBOARD_START, WRAM_ONCHIP, WRAM_ONCHIP_END, WRAM_ONCHIP_START}, register::{Mode, RegisterError, RegisterMap, RegisterSet, CPSR}};
-
-use super::CpuError;
 
 #[derive(Debug, Clone)]
 pub enum CpuState {

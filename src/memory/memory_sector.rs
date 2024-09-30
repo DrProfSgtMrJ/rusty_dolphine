@@ -58,7 +58,7 @@ mod tests {
 
     use super::*;
 
-    use super::super::gba_constants::KBYTES;
+    use crate::gba::KBYTES;
 
     #[test]
     fn test_memory_sector_with_size() {

@@ -1,6 +1,6 @@
-use crate::{memory::init_gba_memory_bus, register::init_gba_registers};
+use super::{init_gba_memory_bus, init_gba_registers};
 
-use super::{CpuError, CPU};
+use crate::cpu::{CpuError, CPU};
 
 
 pub fn init_gba_cpu() -> Result<CPU, CpuError> {

@@ -1,4 +1,5 @@
-use crate::memory::{MemoryBus, MemoryError, BIOS, BIOS_END, BIOS_START, IO_REGISTERS, IO_REGISTERS_END, IO_REGISTERS_START, WRAM, WRAM_ONBOARD_END, WRAM_ONBOARD_START, WRAM_ONCHIP, WRAM_ONCHIP_END, WRAM_ONCHIP_START};
+use super::{BIOS, BIOS_END, BIOS_START, IO_REGISTERS, IO_REGISTERS_END, IO_REGISTERS_START, WRAM, WRAM_ONBOARD_END, WRAM_ONBOARD_START, WRAM_ONCHIP, WRAM_ONCHIP_END, WRAM_ONCHIP_START};
+use crate::memory::{MemoryBus, MemoryError};
 
 
 pub fn init_gba_memory_bus() -> Result<MemoryBus, MemoryError> {
@@ -15,7 +16,7 @@ pub fn init_gba_memory_bus() -> Result<MemoryBus, MemoryError> {
 #[cfg(test)]
 mod tests {
 
-    use crate::memory::{BIOS_SIZE, IO_REGISTERS_SIZE, WRAM_ONBOARD_SIZE, WRAM_ONCHIP_SIZE};
+    use crate::gba::{BIOS_SIZE, IO_REGISTERS_SIZE, WRAM_ONBOARD_SIZE, WRAM_ONCHIP_SIZE};
 
     use super::*;
 

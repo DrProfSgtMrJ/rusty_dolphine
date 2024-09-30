@@ -88,7 +88,7 @@ mod tests {
 
 
     use super::*;
-    use super::super::gba_constants::{BIOS_START, BIOS_END, BIOS_SIZE, WRAM_ONBOARD_SIZE, WRAM_ONBOARD_START, WRAM_ONBOARD_END};
+    use crate::gba::{BIOS_START, BIOS_END, BIOS_SIZE, WRAM_ONBOARD_SIZE, WRAM_ONBOARD_START, WRAM_ONBOARD_END};
 
     #[test]
     fn test_memory_bus_builder_sector_with_size() {
