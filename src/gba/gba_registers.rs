@@ -201,7 +201,7 @@ pub fn init_gba_registers() -> Result<RegisterMap, RegisterError> {
 #[cfg(test)]
 mod tests {
 
-    use crate::register::{read_register, write_register};
+    use crate::register::{read_register_map, write_register_map};
 
     use super::*;
 
@@ -210,31 +210,31 @@ mod tests {
 
         match init_gba_registers() {
             Ok(mut register_map) => {
-                let initial_system_value = read_register(&register_map, Mode::SYSTEM, REGISTER_15).unwrap();
+                let initial_system_value = read_register_map(&register_map, Mode::SYSTEM, REGISTER_15).unwrap();
                 assert_eq!(initial_system_value, 0);
 
                 let expected_value = 500;
-                write_register(&mut register_map, Mode::SYSTEM, REGISTER_15, expected_value).unwrap();
+                write_register_map(&mut register_map, Mode::SYSTEM, REGISTER_15, expected_value).unwrap();
 
-                let fiq_value = read_register(&register_map, Mode::FIQ, REGISTER_15).unwrap();
+                let fiq_value = read_register_map(&register_map, Mode::FIQ, REGISTER_15).unwrap();
                 assert_eq!(fiq_value, expected_value);
 
                 let other_value = 1000;
-                write_register(&mut register_map, Mode::ABORT, REGISTER_15, other_value).unwrap();
+                write_register_map(&mut register_map, Mode::ABORT, REGISTER_15, other_value).unwrap();
 
-                let system_value = read_register(&register_map, Mode::SYSTEM, REGISTER_15).unwrap();
+                let system_value = read_register_map(&register_map, Mode::SYSTEM, REGISTER_15).unwrap();
                 assert_eq!(system_value, other_value);
 
-                let svc_value = read_register(&register_map, Mode::SUPERVISOR, REGISTER_15).unwrap();
+                let svc_value = read_register_map(&register_map, Mode::SUPERVISOR, REGISTER_15).unwrap();
                 assert_eq!(svc_value, other_value);
 
-                let abt_value = read_register(&register_map, Mode::ABORT, REGISTER_15).unwrap();
+                let abt_value = read_register_map(&register_map, Mode::ABORT, REGISTER_15).unwrap();
                 assert_eq!(abt_value, other_value);
 
-                let irq_value = read_register(&register_map, Mode::IRQ, REGISTER_15).unwrap();
+                let irq_value = read_register_map(&register_map, Mode::IRQ, REGISTER_15).unwrap();
                 assert_eq!(irq_value, other_value);
 
-                let und_value = read_register(&register_map, Mode::UNDEFINED, REGISTER_15).unwrap();
+                let und_value = read_register_map(&register_map, Mode::UNDEFINED, REGISTER_15).unwrap();
                 assert_eq!(und_value, other_value);
             }
             Err(e) => {

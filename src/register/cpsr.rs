@@ -1,10 +1,9 @@
 use core::fmt;
 
-use bitflags::{bitflags, Flags};
+use bitflags::bitflags;
 
 use crate::cpu::CpuState;
 
-use super::RegisterError;
 
 bitflags! {
     #[derive(Debug, Clone, Default)]
@@ -74,7 +73,7 @@ impl CPSR {
         self.contains(CPSR::N)
     }
 
-    pub fn set_N(&mut self, value: bool) {
+    pub fn setn(&mut self, value: bool) {
         self.set(CPSR::N, value);
     }
 
@@ -82,7 +81,7 @@ impl CPSR {
         self.contains(CPSR::Z)
     }
 
-    pub fn set_Z(&mut self, value: bool) {
+    pub fn setz(&mut self, value: bool) {
         self.set(CPSR::Z, value);
     }
 
@@ -90,7 +89,7 @@ impl CPSR {
         self.contains(CPSR::C)
     }
 
-    pub fn set_C(&mut self, value: bool) {
+    pub fn setc(&mut self, value: bool) {
         self.set(CPSR::C, value);
     }
 
@@ -98,7 +97,7 @@ impl CPSR {
         self.contains(CPSR::V)
     }
 
-    pub fn set_V(&mut self, value: bool) {
+    pub fn setv(&mut self, value: bool) {
         self.set(CPSR::V, value);
     }
 
@@ -106,7 +105,7 @@ impl CPSR {
         self.contains(CPSR::Q)
     }
 
-    pub fn set_Q(&mut self, value: bool) {
+    pub fn setq(&mut self, value: bool) {
         self.set(CPSR::Q, value);
     }
 
@@ -114,7 +113,7 @@ impl CPSR {
         self.contains(CPSR::J)
     }
 
-    pub fn set_J(&mut self, value: bool) {
+    pub fn setj(&mut self, value: bool) {
         self.set(CPSR::J, value);
     }
 
@@ -122,7 +121,7 @@ impl CPSR {
         self.contains(CPSR::E)
     }
 
-    pub fn set_E(&mut self, value: bool) {
+    pub fn sete(&mut self, value: bool) {
         self.set(CPSR::E, value);
     }
 
@@ -130,7 +129,7 @@ impl CPSR {
         self.contains(CPSR::A)
     }
 
-    pub fn set_A(&mut self, value: bool) {
+    pub fn seta(&mut self, value: bool) {
         self.set(CPSR::A, value);
     }
 
@@ -138,7 +137,7 @@ impl CPSR {
         self.contains(CPSR::I)
     }
 
-    pub fn set_I(&mut self, value: bool) {
+    pub fn seti(&mut self, value: bool) {
         self.set(CPSR::I, value);
     }
 
@@ -146,7 +145,7 @@ impl CPSR {
         self.contains(CPSR::F)
     }
 
-    pub fn set_F(&mut self, value: bool) {
+    pub fn setf(&mut self, value: bool) {
         self.set(CPSR::F, value);
     }
 

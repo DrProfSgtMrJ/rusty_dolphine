@@ -3,6 +3,7 @@ mod cpu;
 mod memory;
 mod register;
 mod gba;
+mod instruction;
 
 use gba::init_gba_cpu;
 
