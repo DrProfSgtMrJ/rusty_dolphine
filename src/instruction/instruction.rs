@@ -1,3 +1,5 @@
+use core::fmt;
+
 use bitflags::bitflags;
 
 use super::error::InstructionError;
@@ -17,8 +19,33 @@ pub struct ALUInstruction {
     pub operand: Operand, // Bits 11-0 (2nd Operand: Immediate Value or Register)
 }
 
+impl fmt::Display for ALUInstruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let opcode_str = match self.opcode {
+            0 => "AND",
+            1 => "EOR",
+            2 => "SUB",
+            3 => "RSB",
+            4 => "ADD",
+            5 => "ADC",
+            6 => "SBC",
+            7 => "RSC",
+            8 => "TST",
+            9 => "TEQ",
+            10 => "CMP",
+            11 => "CMN",
+            12 => "ORR",
+            13 => "MOV",
+            14 => "BIC",
+            15 => "MVN",
+            _ => "Unknown",
+        };
+        write!(f, "{}{{{}}} R{},R{},{}", opcode_str, self.condition, self.rd, self.rn, self.operand)
+    }
+}
+
 bitflags! {
-    #[derive(Debug, Default, Clone)]
+    #[derive(Debug, Default, Clone, PartialEq, Eq)]
     pub struct Condition: u8 {
         const EQ = 0b0000; // Equal (Z=1)
         const NE = 0b0001; // Not Equal (Z=0)
@@ -39,7 +66,32 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Clone)]
+impl fmt::Display for Condition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.bits() {
+            0b0000 => write!(f, "EQ")?,
+            0b0001 => write!(f, "NE")?,
+            0b0010 => write!(f, "CS")?,
+            0b0011 => write!(f, "CC")?,
+            0b0100 => write!(f, "MI")?,
+            0b0101 => write!(f, "PL")?,
+            0b0110 => write!(f, "VS")?,
+            0b0111 => write!(f, "VC")?,
+            0b1000 => write!(f, "HI")?,
+            0b1001 => write!(f, "LS")?,
+            0b1010 => write!(f, "GE")?,
+            0b1011 => write!(f, "LT")?,
+            0b1100 => write!(f, "GT")?,
+            0b1101 => write!(f, "LE")?,
+            0b1110 => write!(f, "AL")?,
+            0b1111 => write!(f, "NV")?,
+            _ => write!(f, "Unknown")?,
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Operand {
     Immediate {
         ror: u8, // Bits 11-8 (ROR-Shift applied to nn) (0-30, in steps of 2)
@@ -52,19 +104,54 @@ pub enum Operand {
     }
 }
 
-#[derive(Debug, Clone)]
+impl fmt::Display for Operand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Operand::Immediate { ror, nn } => {
+                write!(f, "{:08b},ROR#{}", nn, ror )
+            }
+            Operand::Register { shift_type, shift_by, rm } => {
+                write!(f, "R{},{}{}", rm, shift_type, shift_by)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum ShiftBy {
     Immediate(u8),
     Register(u8),
 }
 
+impl fmt::Display for ShiftBy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ShiftBy::Immediate(value) => write!(f, "#{}", value),
+            ShiftBy::Register(value) => write!(f, "R{}", value),
+        }
+    }
+}
+
 bitflags! {
-    #[derive(Debug, Default, Clone)]
+    #[derive(Debug, Default, Clone, PartialEq, Eq)]
     struct ShiftType: u8 {
         const LSL = 0b00; // Logical Shift Left
         const LSR = 0b01; // Logical Shift Right
         const ASR = 0b10; // Arithmetic Shift Right
         const ROR = 0b11; // Rotate Right
+    }
+}
+
+impl fmt::Display for ShiftType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.bits() {
+            0b00 => write!(f, "LSL")?,
+            0b01 => write!(f, "LSR")?,
+            0b10 => write!(f, "ASR")?,
+            0b11 => write!(f, "ROR")?,
+            _ => write!(f, "Unknown")?,
+        }
+        Ok(())
     }
 }
 
@@ -117,5 +204,34 @@ impl From<u32> for ALUInstruction {
             rd,
             operand,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+
+    use super::*;
+
+    #[test]
+    fn test_alu_instruction_add_registers() {
+        let expected_str = "ADD{AL} R2,R1,R3,LSL#0";
+        let value: u32 = 0xE0812003;
+        let instruction = ALUInstruction::from(value);
+
+        assert_eq!(instruction.condition, Condition::AL);
+        assert_eq!(instruction.immediate, false);
+        assert_eq!(instruction.opcode, 4); // ADD
+        assert_eq!(instruction.s_flag, false); // don't update condition flag
+
+        assert_eq!(instruction.rn, 1); // R1
+        assert_eq!(instruction.rd, 2); // R2
+        assert_eq!(instruction.operand, Operand::Register {
+            shift_type: ShiftType::LSL,
+            shift_by: ShiftBy::Immediate(0),
+            rm: 3, // R3
+        });
+
+        assert_eq!(instruction.to_string(), expected_str);
     }
 }
