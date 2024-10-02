@@ -1,6 +1,7 @@
 use core::fmt;
 
 use bitflags::bitflags;
+use strum_macros::Display;
 
 use super::error::InstructionError;
 
@@ -12,7 +13,7 @@ pub trait Instruction {
 pub struct ALUInstruction {
     pub condition: Condition, // Bits 31-28
     pub immediate: bool, // Bit 25 (Immediate 2nd Operand Flag) (0=Register, 1=Immediate)
-    pub opcode: u8, // Bits 24-21
+    pub opcode: Opcode, // Bits 24-21
     pub s_flag: bool, // Bit 20 (Set Condition Codes) (0=No, 1=Yes) (Must be 1 for opcode 8-B)
     pub rn: u8, // Bits 19-16 (1st Operand Register: R0-R15) (Including PC=R15) (Must be 0000b for Mov/Mvn)
     pub rd: u8, // Bits 15-12 (Destination Register: R0-R15) (Including PC=R15) (Must be 0000b or 1111b for Cmp/Cmn/Tst/Teq{P})
@@ -21,26 +22,7 @@ pub struct ALUInstruction {
 
 impl fmt::Display for ALUInstruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let opcode_str = match self.opcode {
-            0 => "AND",
-            1 => "EOR",
-            2 => "SUB",
-            3 => "RSB",
-            4 => "ADD",
-            5 => "ADC",
-            6 => "SBC",
-            7 => "RSC",
-            8 => "TST",
-            9 => "TEQ",
-            10 => "CMP",
-            11 => "CMN",
-            12 => "ORR",
-            13 => "MOV",
-            14 => "BIC",
-            15 => "MVN",
-            _ => "Unknown",
-        };
-        write!(f, "{}{{{}}} R{},R{},{}", opcode_str, self.condition, self.rd, self.rn, self.operand)
+        write!(f, "{}{{{}}} R{},R{},{}", self.opcode, self.condition, self.rd, self.rn, self.operand)
     }
 }
 
@@ -88,6 +70,51 @@ impl fmt::Display for Condition {
             _ => write!(f, "Unknown")?,
         }
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Display, PartialEq, Eq)]
+pub enum Opcode {
+    AND,
+    EOR,
+    SUB,
+    RSB,
+    ADD,
+    ADC,
+    SBC,
+    RSC,
+    TST,
+    TEQ,
+    CMP,
+    CMN,
+    ORR,
+    MOV,
+    BIC,
+    MVN,
+    Invalid,
+}
+
+impl From<u8> for Opcode {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => Opcode::AND,
+            1 => Opcode::EOR,
+            2 => Opcode::SUB,
+            3 => Opcode::RSB,
+            4 => Opcode::ADD,
+            5 => Opcode::ADC,
+            6 => Opcode::SBC,
+            7 => Opcode::RSC,
+            8 => Opcode::TST,
+            9 => Opcode::TEQ,
+            10 => Opcode::CMP,
+            11 => Opcode::CMN,
+            12 => Opcode::ORR,
+            13 => Opcode::MOV,
+            14 => Opcode::BIC,
+            15 => Opcode::MVN,
+            _ => Opcode::Invalid,
+        }
     }
 }
 
@@ -163,7 +190,8 @@ impl From<u32> for ALUInstruction {
 
         let immediate = (value & (1 << 25)) != 0;
 
-        let opcode: u8 = ((value >> 21) & 0xF) as u8;
+        let opcode_value: u8 = ((value >> 21) & 0xF) as u8;
+        let opcode = Opcode::from(opcode_value);
 
         let s_flag = (value & (1 << 20)) != 0;
 
@@ -221,7 +249,7 @@ mod tests {
 
         assert_eq!(instruction.condition, Condition::AL);
         assert_eq!(instruction.immediate, false);
-        assert_eq!(instruction.opcode, 4); // ADD
+        assert_eq!(instruction.opcode, Opcode::ADD); 
         assert_eq!(instruction.s_flag, false); // don't update condition flag
 
         assert_eq!(instruction.rn, 1); // R1
