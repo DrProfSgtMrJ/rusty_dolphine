@@ -1,6 +1,6 @@
 
 pub enum InstructionError {
     InvalidInstruction,
-    InvalidRegister(String),
+    InvalidRegister(u8),
     InvalidArgument(String),
 }

@@ -1,9 +1,9 @@
 
 #[derive(Debug)]
 pub enum RegisterError {
-    DuplicateRegister(String),
-    DuplicateRegisterName(String),
-    InvalidRegister(String),
+    DuplicateRegister(u8),
+    InvalidRegister(u8),
     InvalidMode(String),
     InvalidCPSR(u32),
+    RegisterBorrowError(String),
 }
