@@ -14,29 +14,23 @@ pub fn and(register_set: RegisterSet, s_flag: bool, rd: u8, rn: u8, op2: DataPro
 }
 
 pub fn and_immediate(register_set: RegisterSet, s_flag: bool, rd: u8, rn: u8, shift_amount: u8, nn: u8) -> Result<(), InstructionError> {
-    if let Some(rn) = register_set.get(rn) {
-        let rn_value = rn.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
-        let op2 = if shift_amount > 0 {
-            nn.rotate_right(shift_amount.into()) as u32
-        } else {
-            nn as u32
-        };
-
-        let result = rn_value & op2;
-
-        if let Some(mut rd) = register_set.get(rd) {
-            rd.write(result).map_err(|e| InstructionError::RegisterWriteError(e.to_string()))?;
-            if s_flag {
-                // Set flags
-                todo!()
-            }
-            return Ok(());
-        } else {
-            return Err(InstructionError::InvalidRegister(rd as u32));
-        }
+    let rn = register_set.get(rn).ok_or(InstructionError::InvalidRegister(rn as u32))?;
+    let rn_value = rn.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
+    let op2 = if shift_amount > 0 {
+        nn.rotate_right(shift_amount.into()) as u32
     } else {
-        return Err(InstructionError::InvalidRegister(rn as u32));
+        nn as u32
+    };
+
+    let result = rn_value & op2;
+    let mut rd = register_set.get(rd).ok_or(InstructionError::InvalidRegister(rd as u32))?;
+    rd.write(result).map_err(|e| InstructionError::RegisterWriteError(e.to_string()))?;
+    if s_flag {
+        // Set flags
+        todo!()
     }
+
+    Ok(())
 }
 
 pub fn and_register(register_set: RegisterSet, s_flag: bool, rd: u8, rn: u8, shift_type: ShiftType, shift_by: ShiftBy, rm: u8) -> Result<(), InstructionError> {
@@ -86,7 +80,7 @@ mod tests {
         let expected_value: u32 = 1 & 4;
         let register_set = RegisterSet::builder()
             .with_register(0, RegisterCell::new(1)).unwrap() // Rn
-            .with_register(2, RegisterCell::new(0)).unwrap() // Rd
+            .with_register(2, RegisterCell::new(5)).unwrap() // Rd
             .build();
 
         and_immediate(register_set.clone(), false, 2, 0, 0, 4).unwrap();
