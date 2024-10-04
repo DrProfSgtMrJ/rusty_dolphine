@@ -1,8 +1,8 @@
 use core::fmt;
 
-use crate::instruction::{get_condition, get_s_flag, is_multiply_instruction, Condition, DecodeInstruction};
+use crate::{instruction::{get_condition, get_s_flag, is_multiply_instruction, Condition, DecodeInstruction}, memory::MemoryBus, register::{ReadRegister, RegisterSet, WriteRegister}};
 
-use super::InstructionError;
+use super::{Instruction, InstructionError};
 
 
 #[derive(Debug, Clone)]
@@ -126,7 +126,7 @@ impl DecodeInstruction for MultiplyInstruction {
         let rn: u8 = ((value >> 12) & 0xF) as u8; // or rd_lo
         let rs: u8 = ((value >> 8) & 0xF) as u8;
 
-        let operand = if matches!(opcode, MultiplyOpcode::SMLAL | MultiplyOpcode::SMLALXY | MultiplyOpcode::SMLAWY | MultiplyOpcode::SMULWY | MultiplyOpcode::SMULXY) {
+        let operand = if matches!(opcode, MultiplyOpcode::SMLAXY | MultiplyOpcode::SMLALXY | MultiplyOpcode::SMLAWY | MultiplyOpcode::SMULWY | MultiplyOpcode::SMULXY) {
             // check bit 7 - must be 1 for these instructions   
             if ((value >> 7) & 0x1) != 1 {
                 return Err(InstructionError::InvalidInstruction(value));
@@ -163,6 +163,57 @@ impl DecodeInstruction for MultiplyInstruction {
             operand
         })
     }
+}
+
+impl Instruction for MultiplyInstruction {
+    fn execute(&mut self, register_set: RegisterSet, memory_bus: MemoryBus) -> Result<(), InstructionError> {
+        let mut rd_cell = register_set.get(self.rd).ok_or(InstructionError::InvalidRegister(self.rd as u32))?;
+        let rn_cell = register_set.get(self.rn).ok_or(InstructionError::InvalidRegister(self.rn as u32))?;
+        let rs_cell = register_set.get(self.rs).ok_or(InstructionError::InvalidRegister(self.rs as u32))?;
+
+        let result = match self.operand {
+            MultiplyOperand::NonHalfwordMultiplies { rm } => {
+                let rm_cell = register_set.get(rm).ok_or(InstructionError::InvalidRegister(rm as u32))?;
+                let rm_value = rm_cell.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
+                
+               let rs_value = rs_cell.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?; 
+               let rn_value = rn_cell.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
+
+                match self.opcode {
+                    MultiplyOpcode::MUL => rm_value * rs_value,
+                    MultiplyOpcode::MLA => rm_value * rs_value + rn_value, // TODO: Check restrictions such as rd != rm and rd, rm, rs, rn != 15
+                    MultiplyOpcode::UMAAL => todo!(),
+                    MultiplyOpcode::UMULL => todo!(),
+                    MultiplyOpcode::UMLAL => todo!(),
+                    MultiplyOpcode::SMULL => todo!(),
+                    MultiplyOpcode::SMLAL => todo!(),
+                    MultiplyOpcode::SMLAXY => {
+                        return Err(InstructionError::InvalidOpcode(7));
+                    },
+                    MultiplyOpcode::SMLAWY => {
+                        return Err(InstructionError::InvalidOpcode(8));
+                    },
+                    MultiplyOpcode::SMULWY => {
+                        return Err(InstructionError::InvalidOpcode(9));
+                    },
+                    MultiplyOpcode::SMLALXY => {
+                        return Err(InstructionError::InvalidOpcode(10));
+                    },
+                    MultiplyOpcode::SMULXY => {
+                        return Err(InstructionError::InvalidOpcode(11));
+                    },
+                    MultiplyOpcode::Invalid => {
+                        return Err(InstructionError::InvalidOpcode(12));
+                    }, // TODO: need to use correct opcode
+                }
+            },
+            MultiplyOperand::HalfwordMultiplies { y, x, rm } => todo!(),
+        };
+
+        rd_cell.write(result).map_err(|e| InstructionError::RegisterWriteError(e.to_string()))?;
+       Ok(())
+    }
+
 }
 
 #[cfg(test)]
