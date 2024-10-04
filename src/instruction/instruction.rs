@@ -78,6 +78,15 @@ pub enum InstructionType {
     DataProcessing(DataProccessingInstruction),
 }
 
+impl Instruction for InstructionType {
+    fn execute(&mut self, register_set: RegisterSet, memory_bus: MemoryBus) -> Result<(), InstructionError> {
+        match self {
+            InstructionType::Multiply(multiply_instruction) => todo!(),
+            InstructionType::DataProcessing(data_proccessing_instruction) => data_proccessing_instruction.execute(register_set, memory_bus),
+        }
+    }
+}
+
 pub fn get_instruction(value: u32) -> Result<InstructionType, InstructionError> {
     // bits 27-25
     let bits_27_25 = (value >> 25) & 0b111;
@@ -107,4 +116,8 @@ pub fn get_instruction(value: u32) -> Result<InstructionType, InstructionError> 
     }
 
     Err(InstructionError::InvalidInstruction(value))
+}
+
+pub fn execute(value: u32, register_set: RegisterSet, memory_bus: MemoryBus) -> Result<(), InstructionError> {
+    get_instruction(value)?.execute(register_set, memory_bus)
 }

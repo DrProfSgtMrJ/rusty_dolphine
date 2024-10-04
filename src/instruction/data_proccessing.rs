@@ -23,6 +23,12 @@ impl fmt::Display for DataProccessingInstruction {
     }
 }
 
+impl Into<u32> for DataProccessingInstruction {
+    fn into(self) -> u32 {
+        todo!()
+    }
+}
+
 #[derive(Debug, Clone, Display, PartialEq, Eq)]
 pub enum DataProcessingOpcode {
     AND,
