@@ -78,6 +78,25 @@ pub enum InstructionType {
     DataProcessing(DataProccessingInstruction),
 }
 
+pub fn get_condition(value: u32) -> Condition {
+    let condition_bits = (value >> 28) & 0xF;
+    Condition::from_bits_truncate(condition_bits as u8)
+}
+
+pub fn get_s_flag(value: u32) -> bool {
+    (value & (1 << 20)) != 0
+}
+
+pub fn is_data_processing_instruction(value: u32) -> bool {
+    let bits_27_26 = (value >> 26) & 0b11;
+    bits_27_26 == 0b00
+}
+
+pub fn is_multiply_instruction(value: u32) -> bool {
+    let bits_27_25 = (value >> 25) & 0b111;
+    bits_27_25 == 0b000
+}
+
 impl Instruction for InstructionType {
     fn execute(&mut self, register_set: RegisterSet, memory_bus: MemoryBus) -> Result<(), InstructionError> {
         match self {

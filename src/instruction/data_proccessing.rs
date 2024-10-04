@@ -6,6 +6,8 @@ use strum_macros::Display;
 
 use crate::{instruction::{Condition, DecodeInstruction, Instruction, InstructionError}, memory::MemoryBus, register::{ReadRegister, RegisterSet, WriteRegister}};
 
+use super::{get_condition, get_s_flag, is_data_processing_instruction};
+
 #[derive(Debug, Clone)]
 pub struct DataProccessingInstruction {
     pub condition: Condition, // Bits 31-28
@@ -178,12 +180,10 @@ impl DecodeInstruction for DataProccessingInstruction {
         where
             Self: Sized {
         
-        let condition_bits = ((value >> 28) & 0xF) as u8;
-        let condition = Condition::from_bits_truncate(condition_bits);
+        let condition = get_condition(value);
 
         // Bits 27-26 must be 00b
-        let bits_27_26 = (value >> 26) & 0x3;
-        if bits_27_26 != 0 {
+        if !is_data_processing_instruction(value) {
             return Err(InstructionError::InvalidInstruction(value));
         }
 
@@ -195,9 +195,9 @@ impl DecodeInstruction for DataProccessingInstruction {
             return Err(InstructionError::InvalidOpcode(opcode_value));
         }
 
-        let s_flag = (value & (1 << 20)) != 0;
+        let s_flag = get_s_flag(value);
 
-        let rn = ((value >> 16) & 0xF) as u8;
+        let rn: u8 = ((value >> 16) & 0xF) as u8;
         let rd = ((value >> 12) & 0xF) as u8;
 
 
