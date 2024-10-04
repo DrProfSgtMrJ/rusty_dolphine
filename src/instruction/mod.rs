@@ -1,9 +1,9 @@
 mod instruction;
 mod data_proccessing;
-mod alu;
+mod and;
 mod multiply;
 
-pub use alu::*;
+pub use and::*;
 pub use data_proccessing::*;
 pub use multiply::*;
 pub use instruction::*;

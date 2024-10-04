@@ -4,23 +4,9 @@ use core::fmt;
 use bitflags::bitflags;
 use strum_macros::Display;
 
-use crate::{instruction::{and_immediate, Condition, DecodeInstruction, Instruction, InstructionError}, memory::MemoryBus, register::{ReadRegister, RegisterSet, WriteRegister}};
+use crate::{instruction::{Condition, DecodeInstruction, Instruction, InstructionError}, memory::MemoryBus, register::{ReadRegister, RegisterSet, WriteRegister}};
 
 use super::and; 
-
-const BIT_31_28_MASK: u32 = 0xF000_0000;
-const BIT_27_26_MASK: u32 = 0x0C;
-const BIT_25_MASK: u32 = 0x0200_0000;
-const BIT_21_24_MASK: u32 = 0x01E0_0000;
-const BIT_20_MASK: u32 = 0x0010_0000;
-const BIT_16_19_MASK: u32 = 0x000F_0000;
-const BIT_12_15_MASK: u32 = 0x0000_F000;
-const BIT_8_11_MASK: u32 = 0x0000_0F00;
-const BIT_7_11_MASK: u32 = 0x0000_0F80;
-const BIT_5_6_MASK: u32 = 0x0000_0060;
-const BIT_4_MASK : u32 = 0x0000_0010;
-const BIT_0_4_MASK: u32 = 0x0000_000F;
-const BIT_0_7_MASK: u32 = 0x0000_00FF;
 
 #[derive(Debug, Clone)]
 pub struct DataProccessingInstruction {
