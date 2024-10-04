@@ -6,8 +6,6 @@ use strum_macros::Display;
 
 use crate::{instruction::{Condition, DecodeInstruction, Instruction, InstructionError}, memory::MemoryBus, register::{ReadRegister, RegisterSet, WriteRegister}};
 
-use super::and; 
-
 #[derive(Debug, Clone)]
 pub struct DataProccessingInstruction {
     pub condition: Condition, // Bits 31-28
@@ -99,10 +97,10 @@ bitflags! {
 impl ShiftType {
     pub fn shift(self, shift_amount: u8, value: u32) -> u32 {
         match self {
-            ShiftType::LSL => todo!(),
-            ShiftType::LSR => todo!(),
-            ShiftType::ASR => todo!(), 
-            ShiftType::ROR => todo!(),
+            ShiftType::LSL => value << shift_amount, // Logical shift left
+            ShiftType::LSR => value >> shift_amount, // Logical shift right
+            ShiftType::ASR => ((value as i32) >> shift_amount) as u32, // Arithmetic shift right
+            ShiftType::ROR => value.rotate_right(shift_amount.into()), // Rotate right
             _ => value,
         }
     }
@@ -217,15 +215,53 @@ impl DecodeInstruction for DataProccessingInstruction {
 }
 
 impl Instruction for DataProccessingInstruction {
-    fn execute(&mut self, register_set: RegisterSet, memory_bus: MemoryBus) -> Result<(), InstructionError> {
-       match self.opcode {
-            DataProcessingOpcode::AND => {
-                and(register_set, self.s_flag, self.rd, self.rn, self.operand.clone())
+    fn execute(&mut self, register_set: RegisterSet, _memory_bus: MemoryBus) -> Result<(), InstructionError> {
+        let rn = register_set.get(self.rn).ok_or(InstructionError::InvalidRegister(self.rn as u32))?;
+        let rn_value = rn.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
+        let mut rd_cell = register_set.get(self.rd).ok_or(InstructionError::InvalidRegister(self.rd as u32))?;
+
+        let op2 = match self.operand.clone() {
+            DataProccessingOperand::Immediate { shift_amount, nn } => {
+                if shift_amount > 0 {
+                    nn.rotate_right(shift_amount.into()) as u32
+                }
+                else {
+                    nn as u32
+                }
             },
-            DataProcessingOpcode::EOR => todo!(),
-            DataProcessingOpcode::SUB => todo!(),
-            DataProcessingOpcode::RSB => todo!(),
-            DataProcessingOpcode::ADD => todo!(),
+            DataProccessingOperand::Register { shift_type, shift_by, rm } => {
+                let rm = register_set.get(rm).ok_or(InstructionError::InvalidRegister(rm as u32))?;
+                let rm_value = rm.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
+                match shift_by {
+                    ShiftBy::Immediate(shift_amount) => {
+                        shift_type.shift(shift_amount, rm_value)
+                    }
+                    ShiftBy::Register(rs) => {
+                        let rs = register_set.get(rs).ok_or(InstructionError::InvalidRegister(rs as u32))?;
+                        let rs_value = rs.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
+                        shift_type.shift(rs_value as u8, rm_value)
+                    }
+                }
+            }
+        };
+
+
+        let result = match self.opcode {
+            DataProcessingOpcode::AND => {
+                rn_value & op2
+            },
+            DataProcessingOpcode::EOR => {
+                rn_value ^ op2
+            },
+            DataProcessingOpcode::SUB => {
+                rn_value - op2
+            },
+            DataProcessingOpcode::RSB => {
+                op2 - rn_value
+            },
+            DataProcessingOpcode::ADD => {
+                rn_value + op2
+            },
             DataProcessingOpcode::ADC => todo!(),
             DataProcessingOpcode::SBC => todo!(),
             DataProcessingOpcode::RSC => todo!(),
@@ -234,11 +270,24 @@ impl Instruction for DataProccessingInstruction {
             DataProcessingOpcode::CMP => todo!(),
             DataProcessingOpcode::CMN => todo!(),
             DataProcessingOpcode::ORR => todo!(),
-            DataProcessingOpcode::MOV => todo!(),
+            DataProcessingOpcode::MOV => {
+                op2
+            },
             DataProcessingOpcode::BIC => todo!(),
-            DataProcessingOpcode::MVN => todo!(),
-            DataProcessingOpcode::Invalid => todo!(),
-        } 
+            DataProcessingOpcode::MVN => {
+                !op2
+            },
+            DataProcessingOpcode::Invalid => {
+                return Err(InstructionError::InvalidOpcode(0)); // TODO: add actuall opcode
+            },
+        };
+
+        rd_cell.write(result).map_err(|e| InstructionError::RegisterWriteError(e.to_string()))?;
+        if self.s_flag {
+            // Set flags
+            todo!()
+        }
+        Ok(())
     }
 }
 
