@@ -23,12 +23,6 @@ impl fmt::Display for DataProccessingInstruction {
     }
 }
 
-impl Into<u32> for DataProccessingInstruction {
-    fn into(self) -> u32 {
-        todo!()
-    }
-}
-
 #[derive(Debug, Clone, Display, PartialEq, Eq)]
 pub enum DataProcessingOpcode {
     AND,
@@ -138,6 +132,34 @@ pub enum DataProccessingOperand {
     }
 }
 
+impl DataProccessingOperand {
+    pub fn compute(self, register_set: RegisterSet) -> Result<u32, InstructionError> {
+        match self {
+            DataProccessingOperand::Immediate { shift_amount, nn } => {
+                if shift_amount > 0 {
+                    Ok(nn.rotate_right(shift_amount.into()) as u32)
+                } else {
+                    Ok(nn as u32)
+                }
+            },
+            DataProccessingOperand::Register { shift_type, shift_by, rm } => {
+                let rm = register_set.get(rm).ok_or(InstructionError::InvalidRegister(rm as u32))?;
+                let rm_value = rm.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
+                match shift_by {
+                    ShiftBy::Immediate(shift_amount) => {
+                        Ok(shift_type.shift(shift_amount, rm_value))
+                    }
+                    ShiftBy::Register(rs) => {
+                        let rs = register_set.get(rs).ok_or(InstructionError::InvalidRegister(rs as u32))?;
+                        let rs_value = rs.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
+                        Ok(shift_type.shift(rs_value as u8, rm_value))
+                    }
+               }
+           }
+        }
+    }
+}
+
 impl fmt::Display for DataProccessingOperand{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -226,31 +248,7 @@ impl Instruction for DataProccessingInstruction {
         let rn_value = rn.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
         let mut rd_cell = register_set.get(self.rd).ok_or(InstructionError::InvalidRegister(self.rd as u32))?;
 
-        let op2 = match self.operand.clone() {
-            DataProccessingOperand::Immediate { shift_amount, nn } => {
-                if shift_amount > 0 {
-                    nn.rotate_right(shift_amount.into()) as u32
-                }
-                else {
-                    nn as u32
-                }
-            },
-            DataProccessingOperand::Register { shift_type, shift_by, rm } => {
-                let rm = register_set.get(rm).ok_or(InstructionError::InvalidRegister(rm as u32))?;
-                let rm_value = rm.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
-                match shift_by {
-                    ShiftBy::Immediate(shift_amount) => {
-                        shift_type.shift(shift_amount, rm_value)
-                    }
-                    ShiftBy::Register(rs) => {
-                        let rs = register_set.get(rs).ok_or(InstructionError::InvalidRegister(rs as u32))?;
-                        let rs_value = rs.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
-                        shift_type.shift(rs_value as u8, rm_value)
-                    }
-                }
-            }
-        };
-
+        let op2 = self.operand.clone().compute(register_set.clone())?;
 
         let result = match self.opcode {
             DataProcessingOpcode::AND => {
@@ -307,6 +305,41 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_shift_lsl() {
+        let shift_type = ShiftType::LSL; 
+        let shift_amount = 2;
+        let value = 0b0000_0000_0000_0000_0000_0000_0000_0001;
+
+        let result = shift_type.shift(shift_amount, value);
+
+        assert_eq!(result, 0b0000_0000_0000_0000_0000_0000_0000_0100);
+    }
+
+    #[test]
+    fn test_shift_lsr() {
+        let shift_type = ShiftType::LSR; 
+        let value = 0b0000_0000_0000_0000_0000_0000_0001_0000;
+
+        let result = shift_type.shift(2, value);
+
+        assert_eq!(result, 0b0000_0000_0000_0000_0000_0000_0000_0100);
+    }
+
+    #[test]
+    fn test_shift_asr() {
+        let shift_type = ShiftType::ASR;
+        let result = shift_type.shift(4, 0xF000_0000);
+        assert_eq!(result, 0xFF00_0000); // Expect ASR on signed value (preserve sign bits)
+    }
+
+     #[test]
+    fn test_shift_ror() {
+        let shift_type = ShiftType::ROR;
+        let result = shift_type.shift(4, 0x1000_0001);
+        assert_eq!(result, 0x1100_0000); // Rotate right by 4 -> lower nibble becomes upper
+    }
+
+    #[test]
     fn test_alu_instruction_add_registers() {
         let expected_str = "ADD{AL} R2,R1,R3,LSL#0";
         let value: u32 = 0xE0812003;
@@ -357,7 +390,6 @@ mod tests {
             shift_by: ShiftBy::Register(10),
             rm: 9,
         });
-        println!("{}", instruction.to_string());
     }
 
     #[test]
