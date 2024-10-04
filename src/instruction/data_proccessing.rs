@@ -261,6 +261,8 @@ impl Instruction for DataProccessingInstruction {
 #[cfg(test)]
 mod tests {
 
+    use crate::register::RegisterCell;
+
     use super::*;
 
     #[test]
@@ -315,5 +317,38 @@ mod tests {
             rm: 9,
         });
         println!("{}", instruction.to_string());
+    }
+
+    #[test]
+    fn test_and_immediate_execute() {
+        let value = 0b1110_00_1_0000_0_0000_0001_0000_00000010;
+        // Condition:    1110 (AL)
+        // I:           1 (Immediate Operand)
+        // Opcode:      0000 (AND)
+        // S:           0 (No condition code flag set)
+        // Rn:          0000 (R0)
+        // Rd:          0001 (R1)
+        // Is:          0000 (0)
+        // nn:          00000010 (2)
+
+        let expected_value: u32 = 3 & 2;
+        let instruction = DataProccessingInstruction::decode(value);
+        assert!(instruction.is_ok());
+        let mut instruction = instruction.unwrap();
+        assert_eq!(instruction.condition, Condition::AL);
+        assert_eq!(instruction.opcode, DataProcessingOpcode::AND);
+        assert!(instruction.immediate);
+        assert_eq!(instruction.rn, 0);
+        assert_eq!(instruction.rd, 1);
+
+        let register_set = RegisterSet::builder()
+            .with_register(0, RegisterCell::new(3)).unwrap()
+            .with_register(1, RegisterCell::new(0)).unwrap()
+            .build();
+        let result = instruction.execute(register_set.clone(), MemoryBus::default());
+        assert!(result.is_ok());
+        let register = register_set.clone().get(1).unwrap();
+        let value = register.read().unwrap();
+        assert_eq!(value, expected_value);
     }
 }
