@@ -1,7 +1,9 @@
-mod error;
-mod data_processing;
 mod instruction;
+mod data_proccessing;
+mod alu;
+mod multiply;
 
-pub use data_processing::*;
-pub use error::*;
+pub use alu::*;
+pub use data_proccessing::*;
+pub use multiply::*;
 pub use instruction::*;

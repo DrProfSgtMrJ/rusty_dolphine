@@ -1,5 +1,7 @@
+use strum_macros::Display;
 
-#[derive(Debug)]
+
+#[derive(Debug, Display)]
 pub enum RegisterError {
     DuplicateRegister(u8),
     InvalidRegister(u8),
