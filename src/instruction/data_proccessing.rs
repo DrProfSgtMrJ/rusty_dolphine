@@ -364,6 +364,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_invalid_data_processing_instruction() {
+        // bits 27-26 must be 00b
+        let value = 0b1110_10_0_0010_0_1000_0111_1010_0_11_1_1001;
+        let instruction = DataProccessingInstruction::decode(value);
+        assert_eq!(instruction.err(), Some(InstructionError::InvalidInstruction(value)));
+    }
+
+    #[test]
+    fn test_invalid_op_code() {
+        let invalid_opcode_value: u8 = 100;
+        assert_eq!(DataProcessingOpcode::from(invalid_opcode_value), DataProcessingOpcode::Invalid);
+    }
+
+    #[test]
     fn test_alu_instruction_add_registers() {
         let expected_str = "ADD{AL} R2,R1,R3,LSL#0";
         let value: u32 = 0xE0812003;

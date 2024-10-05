@@ -6,7 +6,7 @@ use crate::{memory::MemoryBus, register::RegisterSet};
 
 use super::{DataProccessingInstruction, MultiplyInstruction};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum InstructionError {
     InvalidOpcode(u8),
     InvalidInstruction(u32),
