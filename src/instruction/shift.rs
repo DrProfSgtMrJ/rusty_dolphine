@@ -94,7 +94,7 @@ impl ShiftType {
                         return ShiftResult::new(0, Some(0));
                     }
                 }
-                let shifted_value = (((value as i32) >> shift_amount) as u32);
+                let shifted_value = ((value as i32) >> shift_amount) as u32;
                 let carry = (value >> (shift_amount - 1)) & 1;
                 ShiftResult::new(shifted_value, Some(carry))
             }, 
@@ -107,7 +107,7 @@ impl ShiftType {
                     return ShiftResult::new(shifted_value, Some(carry));
                 }
                 // Regular Rotate Right
-                let shifted_value = value.rotate_right(shift_amount.into());
+                let shifted_value = (value >> shift_amount) | (value << (32 - shift_amount));
                 let carry = (value >> (shift_amount - 1)) & 1;
                 ShiftResult::new(shifted_value, Some(carry))
             }, // Rotate right
@@ -141,29 +141,92 @@ mod tests {
 
         let result = shift_type.shift(shift_amount, value, 0);
         assert_eq!(result.value, 0b0000_0000_0000_0000_0000_0000_0000_0100);
+        assert_eq!(result.carry, Some(0));
+    }
+
+    #[test]
+    fn test_shift_lsl0() {
+        let shift_type = ShiftType::LSL;
+        let shift_amount = 0;
+        let value = 0b0000_0000_0000_0000_0000_0000_0000_0001;
+
+        let result = shift_type.shift(shift_amount, value, 0);
+        assert_eq!(result.value, value);
+        assert_eq!(result.carry, None);
     }
 
     #[test]
     fn test_shift_lsr() {
         let shift_type = ShiftType::LSR; 
-        let value = 0b0000_0000_0000_0000_0000_0000_0001_0000;
+        let value = 0b1000_0000_0000_0000_0000_0000_0001_0000;
+        let shift_amount = 2;
 
-        let result = shift_type.shift(2, value, 0);
+        let result = shift_type.shift(shift_amount, value, 0);
 
-        assert_eq!(result.value, 0b0000_0000_0000_0000_0000_0000_0000_0100);
+        assert_eq!(result.value, 0b0010_0000_0000_0000_0000_0000_0000_0100);
+        assert_eq!(result.carry, Some(0));
+    }
+
+    #[test]
+    fn test_shift_lsr0() {
+        let shift_type = ShiftType::LSR;
+        let value = 0b1000_0000_0000_0000_0000_0000_0001_0000;
+        let shift_amount = 0;
+
+        let result = shift_type.shift(shift_amount, value, 0);
+        assert_eq!(result.value, 0);
+        assert_eq!(result.carry, Some(1));
     }
 
     #[test]
     fn test_shift_asr() {
         let shift_type = ShiftType::ASR;
-        let result = shift_type.shift(4, 0xF000_0000, 0);
+        let value = 0xF000_0000;
+        let shift_amount = 4;
+
+        let result = shift_type.shift(shift_amount, value, 0);
         assert_eq!(result.value, 0xFF00_0000); // Expect ASR on signed value (preserve sign bits)
+        assert_eq!(result.carry, Some(0));
     }
 
-     #[test]
+    #[test]
+    fn test_shift_asr0() {
+        let shift_type = ShiftType::ASR;
+        let value = 0xF000_0000;
+        let shift_amount = 0;
+
+        let result = shift_type.shift(shift_amount, value, 0);
+        assert_eq!(result.value, 0xFFFFFFFF); // Filled with msb
+        // Carry is set to msb
+        assert_eq!(result.carry, Some(1));
+    } 
+
+    #[test]
     fn test_shift_ror() {
         let shift_type = ShiftType::ROR;
-        let result = shift_type.shift(4, 0x1000_0001, 0);
-        assert_eq!(result.value, 0x1100_0000); // Rotate right by 4 -> lower nibble becomes upper
+        let value = 0x1000_1000;
+        let shift_amount = 4;
+
+        let result = shift_type.shift(shift_amount, value, 0);
+
+        assert_eq!(result.value, 0x0100_0100);
+        assert_eq!(result.carry, Some(0));
+    }
+
+    #[test]
+    fn test_shift_ror0() {
+        let shift_type = ShiftType::ROR;
+        let value = 0x1000_1000;
+        let shift_amount = 0;
+
+        let result = shift_type.clone().shift(shift_amount, value, 0);
+
+        assert_eq!(result.value, 0x0800_0800);
+        assert_eq!(result.carry, Some(0));
+
+        let result_2 = shift_type.clone().shift(shift_amount, value, 1);
+
+        assert_eq!(result_2.value, 0x8800_0800);
+        assert_eq!(result_2.carry, Some(0));
     }
 }

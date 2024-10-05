@@ -213,7 +213,7 @@ impl DecodeInstruction for DataProccessingInstruction {
             // Immediate as 2nd Operand
             let immediate_value= (value & 0xFF) as u8;
             // ROR shift amount (0-30, in steps of 2)
-            let ror_shift_amount = (((value >> 8) & 0xF) * 2) as u8;
+            let ror_shift_amount = ((value >> 8) & 0xF) as u8;
             DataProccessingOperand::Immediate {
                 shift_amount: ror_shift_amount,
                 nn: immediate_value,
