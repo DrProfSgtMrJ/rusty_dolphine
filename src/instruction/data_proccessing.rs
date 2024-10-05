@@ -1,12 +1,11 @@
 
 use core::fmt;
 
-use bitflags::bitflags;
 use strum_macros::Display;
 
 use crate::{instruction::{Condition, DecodeInstruction, Instruction, InstructionError}, memory::MemoryBus, register::{ReadRegister, RegisterCell, RegisterSet, WriteRegister, CPSR}};
 
-use super::{get_s_flag, is_data_processing_instruction};
+use super::{get_s_flag, is_data_processing_instruction, ShiftBy, ShiftResult, ShiftType};
 
 #[derive(Debug, Clone)]
 pub struct DataProccessingInstruction {
@@ -93,54 +92,13 @@ impl From<u8> for DataProcessingOpcode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ShiftBy {
-    // (1-31) (0 is a special case)
-    Immediate(u8),
-    Register(u8),
-}
 
-impl fmt::Display for ShiftBy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ShiftBy::Immediate(value) => write!(f, "#{}", value),
-            ShiftBy::Register(value) => write!(f, "R{}", value),
+impl Into<DataProccessingOperandResult> for ShiftResult {
+    fn into(self) -> DataProccessingOperandResult {
+        DataProccessingOperandResult {
+            result: self.value,
+            carry: self.carry,
         }
-    }
-}
-
-bitflags! {
-    #[derive(Debug, Default, Clone, PartialEq, Eq)]
-    pub struct ShiftType: u8 {
-        const LSL = 0b00000000; // Logical Shift Left
-        const LSR = 0b00000001; // Logical Shift Right
-        const ASR = 0b00000010; // Arithmetic Shift Right
-        const ROR = 0b00000011; // Rotate Right
-    }
-}
-
-impl ShiftType {
-    pub fn shift(self, shift_amount: u8, value: u32) -> u32 {
-        match self {
-            ShiftType::LSL => value << shift_amount, // Logical shift left
-            ShiftType::LSR => value >> shift_amount, // Logical shift right
-            ShiftType::ASR => ((value as i32) >> shift_amount) as u32, // Arithmetic shift right
-            ShiftType::ROR => value.rotate_right(shift_amount.into()), // Rotate right
-            _ => value,
-        }
-    }
-}
-
-impl fmt::Display for ShiftType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.bits() {
-            0b00 => write!(f, "LSL")?,
-            0b01 => write!(f, "LSR")?,
-            0b10 => write!(f, "ASR")?,
-            0b11 => write!(f, "ROR")?,
-            _ => write!(f, "Unknown")?,
-        }
-        Ok(())
     }
 }
 
@@ -157,29 +115,56 @@ pub enum DataProccessingOperand {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DataProccessingOperandResult {
+    pub result: u32,
+    pub carry: Option<u32>,
+}
+
+impl DataProccessingOperandResult {
+    pub fn new(result: u32, carry: Option<u32>) -> Self {
+        Self {
+            result,
+            carry,
+        }
+    }
+}
+
 impl DataProccessingOperand {
-    pub fn compute(&self, register_set: &RegisterSet) -> Result<u32, InstructionError> {
+    pub fn compute(&self, register_set: &RegisterSet) -> Result<DataProccessingOperandResult, InstructionError> {
         match self.clone() {
             DataProccessingOperand::Immediate { shift_amount, nn } => {
                 if shift_amount > 0 {
-                    Ok(nn.rotate_right(shift_amount.into()) as u32)
+                    let result = nn.rotate_right(shift_amount.into()) as u32;
+                    let carry = ((nn >> (shift_amount - 1)) & 1) as u32; 
+                    Ok(DataProccessingOperandResult::new(result, Some(carry)))
                 } else {
-                    Ok(nn as u32)
+                    Ok(DataProccessingOperandResult::new(nn as u32, None))
                 }
             },
             DataProccessingOperand::Register { shift_type, shift_by, rm } => {
                 let rm_value = register_set.get(rm)
                     .ok_or(InstructionError::InvalidRegister(rm as u32))?
                     .read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
+                let cspr = CPSR::from_bits(
+                                    register_set.cpsr.read()
+                                        .map_err(|e| InstructionError::RegisterReadError(e.to_string()))?);
+                
+                if cspr.is_none() {
+                    return Err(InstructionError::InvalidCPSR());
+                }
+
+                let cspr = cspr.unwrap();
+                let carry_in = cspr.carry();
                 match shift_by {
                     ShiftBy::Immediate(shift_amount) => {
-                        Ok(shift_type.shift(shift_amount, rm_value))
+                        Ok(shift_type.shift(shift_amount, rm_value, carry_in).into())
                     }
                     ShiftBy::Register(rs) => {
                         let rs = register_set.get(rs)
                             .ok_or(InstructionError::InvalidRegister(rs as u32))?;
                         let rs_value = rs.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
-                        Ok(shift_type.shift(rs_value as u8, rm_value))
+                        Ok(shift_type.shift(rs_value as u8, rm_value, carry_in).into())
                     }
                }
            }
@@ -228,7 +213,7 @@ impl DecodeInstruction for DataProccessingInstruction {
             // Immediate as 2nd Operand
             let immediate_value= (value & 0xFF) as u8;
             // ROR shift amount (0-30, in steps of 2)
-            let ror_shift_amount = (((value >> 8) & 0x1F) * 2) as u8;
+            let ror_shift_amount = (((value >> 8) & 0xF) * 2) as u8;
             DataProccessingOperand::Immediate {
                 shift_amount: ror_shift_amount,
                 nn: immediate_value,
@@ -274,78 +259,78 @@ impl Instruction for DataProccessingInstruction {
             .read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
 
         // TODO: need to set flags according to the S flag
-        let op2 = self.operand.clone().compute(register_set)?;
+        let op2_result = self.operand.clone().compute(register_set)?;
 
         let mut cpsr = self.cpsr(register_set).ok_or(InstructionError::InvalidCPSR())?;
 
         let result = match self.opcode() {
             // Logical AND
             DataProcessingOpcode::AND => {
-                rn_value & op2
+                rn_value & op2_result.result
             },
             // Logical XOR
             DataProcessingOpcode::EOR => {
-                rn_value ^ op2
+                rn_value ^ op2_result.result
             },
             // Subtract
             DataProcessingOpcode::SUB => {
-                rn_value - op2
+                rn_value - op2_result.result
             },
             // Reverse Subtract
             DataProcessingOpcode::RSB => {
-                op2 - rn_value
+                op2_result.result - rn_value
             },
             // Add
             DataProcessingOpcode::ADD => {
-                rn_value + op2
+                rn_value + op2_result.result
             },
             // Add with Carry
             DataProcessingOpcode::ADC => {
-                rn_value + op2 + cpsr.carry()
+                rn_value + op2_result.result + cpsr.carry()
             },
             // Subtract with Carry
             DataProcessingOpcode::SBC => {
-                rn_value - op2 + cpsr.carry() - 1
+                rn_value - op2_result.result + cpsr.carry() - 1
             },
             // Subtract with Carry Reverse
             DataProcessingOpcode::RSC => {
-                op2 - rn_value + cpsr.carry() - 1
+                op2_result.result - rn_value + cpsr.carry() - 1
             },
             // Test
             DataProcessingOpcode::TST => {
                 write_result = false;
-                rn_value & op2
+                rn_value & op2_result.result
             },
             // Test Exclusive
             DataProcessingOpcode::TEQ => {
                 write_result = false;
-                rn_value ^ op2
+                rn_value ^ op2_result.result
             },
             // Compare
             DataProcessingOpcode::CMP => {
                 write_result = false;
-                rn_value - op2
+                rn_value - op2_result.result
             },
             // Compare Negative
             DataProcessingOpcode::CMN => {
                 write_result = false;
-                rn_value + op2
+                rn_value + op2_result.result
             },
             // Logical OR
             DataProcessingOpcode::ORR => {
-                rn_value | op2
+                rn_value | op2_result.result
             },
             // Move 
             DataProcessingOpcode::MOV => {
-                op2
+                op2_result.result
             },
             // Bit Clear
             DataProcessingOpcode::BIC => {
-                rn_value & !op2
+                rn_value & !op2_result.result
             },
             // Not
             DataProcessingOpcode::MVN => {
-                !op2
+                !op2_result.result
             },
             DataProcessingOpcode::Invalid => {
                 return Err(InstructionError::InvalidOpcode(self.opcode_bits)); 
@@ -377,41 +362,6 @@ mod tests {
     use crate::register::RegisterCell;
 
     use super::*;
-
-    #[test]
-    fn test_shift_lsl() {
-        let shift_type = ShiftType::LSL; 
-        let shift_amount = 2;
-        let value = 0b0000_0000_0000_0000_0000_0000_0000_0001;
-
-        let result = shift_type.shift(shift_amount, value);
-
-        assert_eq!(result, 0b0000_0000_0000_0000_0000_0000_0000_0100);
-    }
-
-    #[test]
-    fn test_shift_lsr() {
-        let shift_type = ShiftType::LSR; 
-        let value = 0b0000_0000_0000_0000_0000_0000_0001_0000;
-
-        let result = shift_type.shift(2, value);
-
-        assert_eq!(result, 0b0000_0000_0000_0000_0000_0000_0000_0100);
-    }
-
-    #[test]
-    fn test_shift_asr() {
-        let shift_type = ShiftType::ASR;
-        let result = shift_type.shift(4, 0xF000_0000);
-        assert_eq!(result, 0xFF00_0000); // Expect ASR on signed value (preserve sign bits)
-    }
-
-     #[test]
-    fn test_shift_ror() {
-        let shift_type = ShiftType::ROR;
-        let result = shift_type.shift(4, 0x1000_0001);
-        assert_eq!(result, 0x1100_0000); // Rotate right by 4 -> lower nibble becomes upper
-    }
 
     #[test]
     fn test_alu_instruction_add_registers() {

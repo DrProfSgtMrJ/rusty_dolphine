@@ -14,6 +14,7 @@ pub enum InstructionError {
     InvalidArgument(String),
     RegisterReadError(String),
     RegisterWriteError(String),
+    InvalidShiftType(u8),
     InvalidCPSR(),
 }
 
