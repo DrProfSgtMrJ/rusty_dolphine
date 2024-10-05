@@ -268,13 +268,15 @@ impl DecodeInstruction for DataProccessingInstruction {
 impl Instruction for DataProccessingInstruction {
     fn execute(&mut self, register_set: &RegisterSet, _memory_bus: &MemoryBus) -> Result<(), InstructionError> {
 
+        let mut write_result = true;
         let rn_value = self.rn_cell(register_set)
             .ok_or(InstructionError::InvalidRegister(self.rn as u32))?
             .read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
 
+        // TODO: need to set flags according to the S flag
         let op2 = self.operand.clone().compute(register_set)?;
 
-        let cpsr = self.cpsr(register_set).ok_or(InstructionError::InvalidCPSR())?;
+        let mut cpsr = self.cpsr(register_set).ok_or(InstructionError::InvalidCPSR())?;
 
         let result = match self.opcode() {
             // Logical AND
@@ -309,17 +311,39 @@ impl Instruction for DataProccessingInstruction {
             DataProcessingOpcode::RSC => {
                 op2 - rn_value + cpsr.carry() - 1
             },
-            DataProcessingOpcode::TST => todo!(),
-            DataProcessingOpcode::TEQ => todo!(),
-            DataProcessingOpcode::CMP => todo!(),
-            DataProcessingOpcode::CMN => todo!(),
-            DataProcessingOpcode::ORR => todo!(),
+            // Test
+            DataProcessingOpcode::TST => {
+                write_result = false;
+                rn_value & op2
+            },
+            // Test Exclusive
+            DataProcessingOpcode::TEQ => {
+                write_result = false;
+                rn_value ^ op2
+            },
+            // Compare
+            DataProcessingOpcode::CMP => {
+                write_result = false;
+                rn_value - op2
+            },
+            // Compare Negative
+            DataProcessingOpcode::CMN => {
+                write_result = false;
+                rn_value + op2
+            },
+            // Logical OR
+            DataProcessingOpcode::ORR => {
+                rn_value | op2
+            },
+            // Move 
             DataProcessingOpcode::MOV => {
                 op2
             },
+            // Bit Clear
             DataProcessingOpcode::BIC => {
                 rn_value & !op2
             },
+            // Not
             DataProcessingOpcode::MVN => {
                 !op2
             },
@@ -328,13 +352,18 @@ impl Instruction for DataProccessingInstruction {
             },
         };
 
-        self.rd_cell(register_set)
-            .ok_or(InstructionError::InvalidRegister(self.rd as u32))?
-            .write(result).map_err(|e| InstructionError::RegisterWriteError(e.to_string()))?;
+        if write_result {
+            self.rd_cell(register_set)
+                .ok_or(InstructionError::InvalidRegister(self.rd as u32))?
+                .write(result).map_err(|e| InstructionError::RegisterWriteError(e.to_string()))?;
+        }
 
-        if self.s_flag {
-            // Set flags
-            todo!()
+        // flags to be set: NZc- (Negative, Zero, Carry, Overflow)
+        if self.s_flag && self.rd != 15 {
+            // set zero flag
+            cpsr.setz(result == 0);
+            // set sign flag
+            cpsr.setn((result >> 31 & 1) == 1);
         }
         Ok(())
     }
