@@ -4,7 +4,7 @@ use core::fmt;
 use bitflags::bitflags;
 use strum_macros::Display;
 
-use crate::{instruction::{Condition, DecodeInstruction, Instruction, InstructionError}, memory::MemoryBus, register::{ReadRegister, RegisterCell, RegisterSet, WriteRegister}};
+use crate::{instruction::{Condition, DecodeInstruction, Instruction, InstructionError}, memory::MemoryBus, register::{ReadRegister, RegisterCell, RegisterSet, WriteRegister, CPSR}};
 
 use super::{get_s_flag, is_data_processing_instruction};
 
@@ -34,12 +34,17 @@ impl DataProccessingInstruction {
         DataProcessingOpcode::from(self.opcode_bits)
     }
 
-    pub fn rn_cell(&self, register_set: RegisterSet) -> Option<RegisterCell> {
+    pub fn rn_cell(&self, register_set: &RegisterSet) -> Option<RegisterCell> {
         register_set.get(self.rn)
     }
 
-    pub fn rd_cell(&self, register_set: RegisterSet) -> Option<RegisterCell> {
+    pub fn rd_cell(&self, register_set: &RegisterSet) -> Option<RegisterCell> {
         register_set.get(self.rd)
+    }
+
+    pub fn cpsr(&self, register_set: &RegisterSet) -> Option<CPSR> {
+        let cpsr = register_set.cpsr.read().ok()?;
+        CPSR::from_bits(cpsr)
     }
 }
 
@@ -153,8 +158,8 @@ pub enum DataProccessingOperand {
 }
 
 impl DataProccessingOperand {
-    pub fn compute(self, register_set: RegisterSet) -> Result<u32, InstructionError> {
-        match self {
+    pub fn compute(&self, register_set: &RegisterSet) -> Result<u32, InstructionError> {
+        match self.clone() {
             DataProccessingOperand::Immediate { shift_amount, nn } => {
                 if shift_amount > 0 {
                     Ok(nn.rotate_right(shift_amount.into()) as u32)
@@ -163,14 +168,16 @@ impl DataProccessingOperand {
                 }
             },
             DataProccessingOperand::Register { shift_type, shift_by, rm } => {
-                let rm = register_set.get(rm).ok_or(InstructionError::InvalidRegister(rm as u32))?;
-                let rm_value = rm.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
+                let rm_value = register_set.get(rm)
+                    .ok_or(InstructionError::InvalidRegister(rm as u32))?
+                    .read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
                 match shift_by {
                     ShiftBy::Immediate(shift_amount) => {
                         Ok(shift_type.shift(shift_amount, rm_value))
                     }
                     ShiftBy::Register(rs) => {
-                        let rs = register_set.get(rs).ok_or(InstructionError::InvalidRegister(rs as u32))?;
+                        let rs = register_set.get(rs)
+                            .ok_or(InstructionError::InvalidRegister(rs as u32))?;
                         let rs_value = rs.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
                         Ok(shift_type.shift(rs_value as u8, rm_value))
                     }
@@ -180,7 +187,7 @@ impl DataProccessingOperand {
     }
 }
 
-impl fmt::Display for DataProccessingOperand{
+impl fmt::Display for DataProccessingOperand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DataProccessingOperand::Immediate { shift_amount, nn } => {
@@ -259,33 +266,49 @@ impl DecodeInstruction for DataProccessingInstruction {
 }
 
 impl Instruction for DataProccessingInstruction {
-    fn execute(&mut self, register_set: RegisterSet, _memory_bus: MemoryBus) -> Result<(), InstructionError> {
+    fn execute(&mut self, register_set: &RegisterSet, _memory_bus: &MemoryBus) -> Result<(), InstructionError> {
 
-        let rn_value = self.rn_cell(register_set.clone())
+        let rn_value = self.rn_cell(register_set)
             .ok_or(InstructionError::InvalidRegister(self.rn as u32))?
             .read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
 
-        let op2 = self.operand.clone().compute(register_set.clone())?;
+        let op2 = self.operand.clone().compute(register_set)?;
+
+        let cpsr = self.cpsr(register_set).ok_or(InstructionError::InvalidCPSR())?;
 
         let result = match self.opcode() {
+            // Logical AND
             DataProcessingOpcode::AND => {
                 rn_value & op2
             },
+            // Logical XOR
             DataProcessingOpcode::EOR => {
                 rn_value ^ op2
             },
+            // Subtract
             DataProcessingOpcode::SUB => {
                 rn_value - op2
             },
+            // Reverse Subtract
             DataProcessingOpcode::RSB => {
                 op2 - rn_value
             },
+            // Add
             DataProcessingOpcode::ADD => {
                 rn_value + op2
             },
-            DataProcessingOpcode::ADC => todo!(),
-            DataProcessingOpcode::SBC => todo!(),
-            DataProcessingOpcode::RSC => todo!(),
+            // Add with Carry
+            DataProcessingOpcode::ADC => {
+                rn_value + op2 + cpsr.carry()
+            },
+            // Subtract with Carry
+            DataProcessingOpcode::SBC => {
+                rn_value - op2 + cpsr.carry() - 1
+            },
+            // Subtract with Carry Reverse
+            DataProcessingOpcode::RSC => {
+                op2 - rn_value + cpsr.carry() - 1
+            },
             DataProcessingOpcode::TST => todo!(),
             DataProcessingOpcode::TEQ => todo!(),
             DataProcessingOpcode::CMP => todo!(),
@@ -294,7 +317,9 @@ impl Instruction for DataProccessingInstruction {
             DataProcessingOpcode::MOV => {
                 op2
             },
-            DataProcessingOpcode::BIC => todo!(),
+            DataProcessingOpcode::BIC => {
+                rn_value & !op2
+            },
             DataProcessingOpcode::MVN => {
                 !op2
             },
@@ -303,7 +328,7 @@ impl Instruction for DataProccessingInstruction {
             },
         };
 
-        self.rd_cell(register_set.clone())
+        self.rd_cell(register_set)
             .ok_or(InstructionError::InvalidRegister(self.rd as u32))?
             .write(result).map_err(|e| InstructionError::RegisterWriteError(e.to_string()))?;
 
@@ -438,9 +463,9 @@ mod tests {
             .with_register(0, RegisterCell::new(3)).unwrap()
             .with_register(1, RegisterCell::new(0)).unwrap()
             .build();
-        let result = instruction.execute(register_set.clone(), MemoryBus::default());
+        let result = instruction.execute(&register_set, &MemoryBus::default());
         assert!(result.is_ok());
-        let value = instruction.rd_cell(register_set.clone()).unwrap().read().unwrap();
+        let value = instruction.rd_cell(&register_set).unwrap().read().unwrap();
         assert_eq!(value, expected_value);
     }
 }

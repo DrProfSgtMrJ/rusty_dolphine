@@ -2,7 +2,7 @@ use crate::register::RegisterMap;
 use crate::memory::MemoryBus;
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CpuState {
 
     // Use full 32-bit instructions

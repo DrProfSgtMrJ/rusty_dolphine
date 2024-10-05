@@ -14,10 +14,11 @@ pub enum InstructionError {
     InvalidArgument(String),
     RegisterReadError(String),
     RegisterWriteError(String),
+    InvalidCPSR(),
 }
 
 pub trait Instruction {
-    fn execute(&mut self, register_set: RegisterSet, memory_bus: MemoryBus) -> Result<(), InstructionError>;
+    fn execute(&mut self, register_set: &RegisterSet, memory_bus: &MemoryBus) -> Result<(), InstructionError>;
 }
 
 pub trait DecodeInstruction {
@@ -93,7 +94,7 @@ pub fn is_multiply_instruction(value: u32) -> bool {
 }
 
 impl Instruction for InstructionType {
-    fn execute(&mut self, register_set: RegisterSet, memory_bus: MemoryBus) -> Result<(), InstructionError> {
+    fn execute(&mut self, register_set: &RegisterSet, memory_bus: &MemoryBus) -> Result<(), InstructionError> {
         match self {
             InstructionType::Multiply(multiply_instruction) => todo!(),
             InstructionType::DataProcessing(data_proccessing_instruction) => data_proccessing_instruction.execute(register_set, memory_bus),
@@ -132,6 +133,6 @@ pub fn get_instruction(value: u32) -> Result<InstructionType, InstructionError> 
     Err(InstructionError::InvalidInstruction(value))
 }
 
-pub fn execute(value: u32, register_set: RegisterSet, memory_bus: MemoryBus) -> Result<(), InstructionError> {
+pub fn execute(value: u32, register_set: &RegisterSet, memory_bus: &MemoryBus) -> Result<(), InstructionError> {
     get_instruction(value)?.execute(register_set, memory_bus)
 }

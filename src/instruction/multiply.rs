@@ -175,7 +175,7 @@ impl DecodeInstruction for MultiplyInstruction {
 }
 
 impl Instruction for MultiplyInstruction {
-    fn execute(&mut self, register_set: RegisterSet, memory_bus: MemoryBus) -> Result<(), InstructionError> {
+    fn execute(&mut self, register_set: &RegisterSet, _memory_bus: &MemoryBus) -> Result<(), InstructionError> {
         let mut rd_cell = register_set.get(self.rd).ok_or(InstructionError::InvalidRegister(self.rd as u32))?;
         let rn_cell = register_set.get(self.rn).ok_or(InstructionError::InvalidRegister(self.rn as u32))?;
         let rs_cell = register_set.get(self.rs).ok_or(InstructionError::InvalidRegister(self.rs as u32))?;

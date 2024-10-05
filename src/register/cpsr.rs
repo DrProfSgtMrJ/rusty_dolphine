@@ -85,8 +85,12 @@ impl CPSR {
         self.set(CPSR::Z, value);
     }
 
-    pub fn is_carry(&self) -> bool {
-        self.contains(CPSR::C)
+    pub fn carry(&self) -> u32 {
+        if self.contains(CPSR::C) {
+            1
+        } else {
+            0
+        }
     }
 
     pub fn setc(&mut self, value: bool) {
@@ -185,5 +189,124 @@ impl fmt::Display for CPSR {
         write!(f, "}}")?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cpsr_display() {
+        let cpsr = CPSR::N | CPSR::Z | CPSR::C | CPSR::V | CPSR::Q | CPSR::J | CPSR::E | CPSR::I | CPSR::F | CPSR::T | CPSR::M;
+        let expected = "CPSR {\n    N (Sign flag): 1\n    Z (Zero flag): 1\n    C (Carry flag): 1\n    V (Overflow flag): 1\n    Q (Sticky overflow flag): 1\n    J (Jazelle Bytecode): 1\n    E (Endian mode): 1\n    A (Abort disable): 0\n    I (IRQ disable): 1\n    F (FIQ disable): 1\n    T (State bit): 1\n    M (Mode bits): 11111\n    Full CPSR Value: ";
+
+        assert!(format!("{}", cpsr).starts_with(expected));
+    }
+
+    #[test]
+    fn test_default_cpsr() {
+        let cpsr = CPSR::default();
+        assert_eq!(cpsr.bits(), 0);
+
+        assert!(!cpsr.is_negative());
+        assert!(!cpsr.is_zero());
+        assert!(cpsr.carry() == 0);
+        assert!(!cpsr.is_overflow());
+        assert!(!cpsr.is_sticky_overflow());
+        assert!(!cpsr.is_jazelle());
+        assert!(!cpsr.is_big_endian());
+        assert!(!cpsr.is_abort_disable());
+        assert!(!cpsr.is_irq_disable());
+        assert!(!cpsr.is_fiq_disable());
+        assert!(cpsr.state() == CpuState::ARM);
+    }
+
+    #[test]
+    fn test_setn() {
+        let mut cpsr = CPSR::default();
+        assert!(!cpsr.is_negative());
+        cpsr.setn(true);
+        assert!(cpsr.is_negative());
+    }
+
+    #[test]
+    fn test_setz() {
+        let mut cpsr = CPSR::default();
+        assert!(!cpsr.is_zero());
+        cpsr.setz(true);
+        assert!(cpsr.is_zero());
+    }
+
+    #[test]
+    fn test_setc() {
+        let mut cpsr = CPSR::default();
+        assert!(cpsr.carry() == 0);
+        cpsr.setc(true);
+        assert!(cpsr.carry() == 1);
+    }
+
+    #[test]
+    fn test_setv() {
+        let mut cpsr = CPSR::default();
+        assert!(!cpsr.is_overflow());
+        cpsr.setv(true);
+        assert!(cpsr.is_overflow());
+    }
+
+    #[test]
+    fn test_setq() {
+        let mut cpsr = CPSR::default();
+        assert!(!cpsr.is_sticky_overflow());
+        cpsr.setq(true);
+        assert!(cpsr.is_sticky_overflow());
+    }
+
+    #[test]
+    fn test_setj() {
+        let mut cpsr = CPSR::default();
+        assert!(!cpsr.is_jazelle());
+        cpsr.setj(true);
+        assert!(cpsr.is_jazelle());
+    }
+
+    #[test]
+    fn test_sete() {
+        let mut cpsr = CPSR::default();
+        assert!(!cpsr.is_big_endian());
+        cpsr.sete(true);
+        assert!(cpsr.is_big_endian());
+    }
+
+    #[test]
+    fn test_seta() {
+        let mut cpsr = CPSR::default();
+        assert!(!cpsr.is_abort_disable());
+        cpsr.seta(true);
+        assert!(cpsr.is_abort_disable());
+    }
+
+    #[test]
+    fn test_seti() {
+        let mut cpsr = CPSR::default();
+        assert!(!cpsr.is_irq_disable());
+        cpsr.seti(true);
+        assert!(cpsr.is_irq_disable());
+    }
+
+    #[test]
+    fn test_setf() {
+        let mut cpsr = CPSR::default();
+        assert!(!cpsr.is_fiq_disable());
+        cpsr.setf(true);
+        assert!(cpsr.is_fiq_disable());
+    }
+
+    #[test]
+    fn test_set_state() {
+        let mut cpsr = CPSR::default();
+        assert!(cpsr.state() == CpuState::ARM);
+        cpsr.set_state(CpuState::THUMB);
+        assert!(cpsr.state() == CpuState::THUMB);
     }
 }
