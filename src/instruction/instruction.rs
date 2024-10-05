@@ -78,11 +78,6 @@ pub enum InstructionType {
     DataProcessing(DataProccessingInstruction),
 }
 
-pub fn get_condition(value: u32) -> Condition {
-    let condition_bits = (value >> 28) & 0xF;
-    Condition::from_bits_truncate(condition_bits as u8)
-}
-
 pub fn get_s_flag(value: u32) -> bool {
     (value & (1 << 20)) != 0
 }

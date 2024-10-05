@@ -4,15 +4,15 @@ use core::fmt;
 use bitflags::bitflags;
 use strum_macros::Display;
 
-use crate::{instruction::{Condition, DecodeInstruction, Instruction, InstructionError}, memory::MemoryBus, register::{ReadRegister, RegisterSet, WriteRegister}};
+use crate::{instruction::{Condition, DecodeInstruction, Instruction, InstructionError}, memory::MemoryBus, register::{ReadRegister, RegisterCell, RegisterSet, WriteRegister}};
 
-use super::{get_condition, get_s_flag, is_data_processing_instruction};
+use super::{get_s_flag, is_data_processing_instruction};
 
 #[derive(Debug, Clone)]
 pub struct DataProccessingInstruction {
-    pub condition: Condition, // Bits 31-28
+    pub condition_bits: u8, // Bits 31-28
     pub immediate: bool, // Bit 25 (Immediate 2nd Operand Flag) (0=Register, 1=Immediate)
-    pub opcode: DataProcessingOpcode, // Bits 24-21
+    pub opcode_bits: u8 , // Bits 24-21
     pub s_flag: bool, // Bit 20 (Set Condition Codes) (0=No, 1=Yes) (Must be 1 for opcode 8-B)
     pub rn: u8, // Bits 19-16 (1st Operand Register: R0-R15) (Including PC=R15) (Must be 0000b for Mov/Mvn)
     pub rd: u8, // Bits 15-12 (Destination Register: R0-R15) (Including PC=R15) (Must be 0000b or 1111b for Cmp/Cmn/Tst/Teq{P})
@@ -21,7 +21,25 @@ pub struct DataProccessingInstruction {
 
 impl fmt::Display for DataProccessingInstruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{{{}}} R{},R{},{}", self.opcode, self.condition, self.rd, self.rn, self.operand)
+        write!(f, "{}{{{}}} R{},R{},{}", self.opcode(), self.condition(), self.rd, self.rn, self.operand)
+    }
+}
+
+impl DataProccessingInstruction {
+    pub fn condition(&self) -> Condition {
+        Condition::from_bits_truncate(self.condition_bits)
+    }
+
+    pub fn opcode(&self) -> DataProcessingOpcode {
+        DataProcessingOpcode::from(self.opcode_bits)
+    }
+
+    pub fn rn_cell(&self, register_set: RegisterSet) -> Option<RegisterCell> {
+        register_set.get(self.rn)
+    }
+
+    pub fn rd_cell(&self, register_set: RegisterSet) -> Option<RegisterCell> {
+        register_set.get(self.rd)
     }
 }
 
@@ -180,19 +198,17 @@ impl DecodeInstruction for DataProccessingInstruction {
         where
             Self: Sized {
         
-        let condition = get_condition(value);
-
+        let condition_bits = (value >> 28) as u8;
         // Bits 27-26 must be 00b
         if !is_data_processing_instruction(value) {
             return Err(InstructionError::InvalidInstruction(value));
         }
 
         let immediate = (value & (1 << 25)) != 0;
-        let opcode_value = ((value >> 21) & 0xF) as u8;
-        let opcode = DataProcessingOpcode::from(opcode_value);
-
+        let opcode_bits = ((value >> 21) & 0xF) as u8;
+        let opcode = DataProcessingOpcode::from(opcode_bits);
         if opcode == DataProcessingOpcode::Invalid {
-            return Err(InstructionError::InvalidOpcode(opcode_value));
+            return Err(InstructionError::InvalidOpcode(opcode_bits));
         }
 
         let s_flag = get_s_flag(value);
@@ -231,9 +247,9 @@ impl DecodeInstruction for DataProccessingInstruction {
         };
 
         Ok(DataProccessingInstruction {
-            condition,
+            condition_bits,
             immediate,
-            opcode,
+            opcode_bits,
             s_flag,
             rn,
             rd,
@@ -244,13 +260,14 @@ impl DecodeInstruction for DataProccessingInstruction {
 
 impl Instruction for DataProccessingInstruction {
     fn execute(&mut self, register_set: RegisterSet, _memory_bus: MemoryBus) -> Result<(), InstructionError> {
-        let rn = register_set.get(self.rn).ok_or(InstructionError::InvalidRegister(self.rn as u32))?;
-        let rn_value = rn.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
-        let mut rd_cell = register_set.get(self.rd).ok_or(InstructionError::InvalidRegister(self.rd as u32))?;
+
+        let rn_value = self.rn_cell(register_set.clone())
+            .ok_or(InstructionError::InvalidRegister(self.rn as u32))?
+            .read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
 
         let op2 = self.operand.clone().compute(register_set.clone())?;
 
-        let result = match self.opcode {
+        let result = match self.opcode() {
             DataProcessingOpcode::AND => {
                 rn_value & op2
             },
@@ -282,11 +299,14 @@ impl Instruction for DataProccessingInstruction {
                 !op2
             },
             DataProcessingOpcode::Invalid => {
-                return Err(InstructionError::InvalidOpcode(0)); // TODO: add actuall opcode
+                return Err(InstructionError::InvalidOpcode(self.opcode_bits)); 
             },
         };
 
-        rd_cell.write(result).map_err(|e| InstructionError::RegisterWriteError(e.to_string()))?;
+        self.rd_cell(register_set.clone())
+            .ok_or(InstructionError::InvalidRegister(self.rd as u32))?
+            .write(result).map_err(|e| InstructionError::RegisterWriteError(e.to_string()))?;
+
         if self.s_flag {
             // Set flags
             todo!()
@@ -346,9 +366,9 @@ mod tests {
         let instruction = DataProccessingInstruction::decode(value);
         assert!(instruction.is_ok());
         let instruction = instruction.unwrap();
-        assert_eq!(instruction.condition, Condition::AL);
+        assert_eq!(instruction.condition(), Condition::AL);
         assert_eq!(instruction.immediate, false);
-        assert_eq!(instruction.opcode, DataProcessingOpcode::ADD); 
+        assert_eq!(instruction.opcode(), DataProcessingOpcode::ADD); 
         assert_eq!(instruction.s_flag, false); // don't update condition flag
 
         assert_eq!(instruction.rn, 1); // R1
@@ -379,10 +399,10 @@ mod tests {
         assert!(instruction.is_ok());
         let instruction = instruction.unwrap();
 
-        assert_eq!(instruction.condition, Condition::AL);
+        assert_eq!(instruction.condition(), Condition::AL);
         assert!(!instruction.s_flag);
         assert!(!instruction.immediate);
-        assert_eq!(instruction.opcode, DataProcessingOpcode::SUB);
+        assert_eq!(instruction.opcode(), DataProcessingOpcode::SUB);
         assert_eq!(instruction.rn, 8);
         assert_eq!(instruction.rd, 7);
         assert_eq!(instruction.operand, DataProccessingOperand::Register {
@@ -408,8 +428,8 @@ mod tests {
         let instruction = DataProccessingInstruction::decode(value);
         assert!(instruction.is_ok());
         let mut instruction = instruction.unwrap();
-        assert_eq!(instruction.condition, Condition::AL);
-        assert_eq!(instruction.opcode, DataProcessingOpcode::AND);
+        assert_eq!(instruction.condition(), Condition::AL);
+        assert_eq!(instruction.opcode(), DataProcessingOpcode::AND);
         assert!(instruction.immediate);
         assert_eq!(instruction.rn, 0);
         assert_eq!(instruction.rd, 1);
@@ -420,8 +440,7 @@ mod tests {
             .build();
         let result = instruction.execute(register_set.clone(), MemoryBus::default());
         assert!(result.is_ok());
-        let register = register_set.clone().get(1).unwrap();
-        let value = register.read().unwrap();
+        let value = instruction.rd_cell(register_set.clone()).unwrap().read().unwrap();
         assert_eq!(value, expected_value);
     }
 }

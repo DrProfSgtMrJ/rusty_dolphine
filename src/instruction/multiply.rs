@@ -1,15 +1,15 @@
 use core::fmt;
 
-use crate::{instruction::{get_condition, get_s_flag, is_multiply_instruction, Condition, DecodeInstruction}, memory::MemoryBus, register::{ReadRegister, RegisterSet, WriteRegister}};
+use crate::{instruction::{get_s_flag, is_multiply_instruction, Condition, DecodeInstruction}, memory::MemoryBus, register::{ReadRegister, RegisterSet, WriteRegister}};
 
 use super::{Instruction, InstructionError};
 
 
 #[derive(Debug, Clone)]
 pub struct MultiplyInstruction {
-    pub condition: Condition,
+    pub condition_bits: u8,
     // 27-25 must be 000b for this instruction
-    pub opcode: MultiplyOpcode, // Bits 24-21
+    pub opcode_bits: u8, // Bits 24-21
     pub s_flag: bool, // Bit 20 (Set Condition Codes) (0=No, 1=Yes) (Must be 0 for Halfword & UMAAL)
     pub rd: u8, // (RdHi) Bits 19-16 (Destination Register: R0-R14) 
     pub rn: u8, // (RdLo) Bits 15-12 Accumlate Register (R0-R14) (Set to 0000b if unused)
@@ -17,10 +17,20 @@ pub struct MultiplyInstruction {
     pub operand: MultiplyOperand, // Bits 11-0 (Operand Register Rm: R0-R14)
 }
 
+impl MultiplyInstruction {
+    pub fn condition(&self) -> Condition {
+        Condition::from_bits_truncate(self.condition_bits)
+    }
+
+    pub fn opcode(&self) -> MultiplyOpcode {
+        MultiplyOpcode::from(self.opcode_bits)
+    }
+}
+
 impl fmt::Display for MultiplyInstruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
        // TODO: Implement formatting for MultiplyInstruction
-       write!(f, "{}{{{}}}", self.opcode, self.condition) 
+       write!(f, "{}{{{}}}", self.opcode(), self.condition()) 
     }
 }
 
@@ -101,7 +111,7 @@ impl DecodeInstruction for MultiplyInstruction {
         where
             Self: Sized {
 
-        let condition = get_condition(value);
+        let condition_bits = (value >> 28) as u8;
 
         // Bits 27-25 must be 000b
         if !is_multiply_instruction(value) {
@@ -109,11 +119,10 @@ impl DecodeInstruction for MultiplyInstruction {
         }
 
         // Bits 24-21
-        let opcode_value = ((value >> 21) & 0xF) as u8;
-        let opcode = MultiplyOpcode::from(opcode_value);
-
+        let opcode_bits = ((value >> 21) & 0xF) as u8;
+        let opcode = MultiplyOpcode::from(opcode_bits);
         if opcode == MultiplyOpcode::Invalid {
-            return Err(InstructionError::InvalidOpcode(opcode_value));
+            return Err(InstructionError::InvalidOpcode(opcode_bits));
         }
 
         let s_flag = get_s_flag(value);
@@ -154,8 +163,8 @@ impl DecodeInstruction for MultiplyInstruction {
         };
 
         Ok(MultiplyInstruction {
-            condition,
-            opcode,
+            condition_bits,
+            opcode_bits,
             s_flag,
             rd,
             rn,
@@ -179,7 +188,7 @@ impl Instruction for MultiplyInstruction {
                let rs_value = rs_cell.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?; 
                let rn_value = rn_cell.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
 
-                match self.opcode {
+                match self.opcode() {
                     MultiplyOpcode::MUL => rm_value * rs_value,
                     MultiplyOpcode::MLA => rm_value * rs_value + rn_value, // TODO: Check restrictions such as rd != rm and rd, rm, rs, rn != 15
                     MultiplyOpcode::UMAAL => todo!(),
@@ -188,22 +197,22 @@ impl Instruction for MultiplyInstruction {
                     MultiplyOpcode::SMULL => todo!(),
                     MultiplyOpcode::SMLAL => todo!(),
                     MultiplyOpcode::SMLAXY => {
-                        return Err(InstructionError::InvalidOpcode(7));
+                        return Err(InstructionError::InvalidOpcode(self.opcode_bits));
                     },
                     MultiplyOpcode::SMLAWY => {
-                        return Err(InstructionError::InvalidOpcode(8));
+                        return Err(InstructionError::InvalidOpcode(self.opcode_bits));
                     },
                     MultiplyOpcode::SMULWY => {
-                        return Err(InstructionError::InvalidOpcode(9));
+                        return Err(InstructionError::InvalidOpcode(self.opcode_bits));
                     },
                     MultiplyOpcode::SMLALXY => {
-                        return Err(InstructionError::InvalidOpcode(10));
+                        return Err(InstructionError::InvalidOpcode(self.opcode_bits));
                     },
                     MultiplyOpcode::SMULXY => {
-                        return Err(InstructionError::InvalidOpcode(11));
+                        return Err(InstructionError::InvalidOpcode(self.opcode_bits));
                     },
                     MultiplyOpcode::Invalid => {
-                        return Err(InstructionError::InvalidOpcode(12));
+                        return Err(InstructionError::InvalidOpcode(self.opcode_bits));
                     }, // TODO: need to use correct opcode
                 }
             },
@@ -236,8 +245,8 @@ mod tests {
         assert!(instruction.is_ok());
         let instruction = instruction.unwrap();
 
-        assert_eq!(instruction.condition, Condition::NE);
-        assert_eq!(instruction.opcode, MultiplyOpcode::MUL);
+        assert_eq!(instruction.condition(), Condition::NE);
+        assert_eq!(instruction.opcode(), MultiplyOpcode::MUL);
         assert_eq!(instruction.s_flag, true);
 
         assert_eq!(instruction.rd, 2);
