@@ -237,6 +237,10 @@ impl DecodeInstruction for DataProccessingInstruction {
         let rn: u8 = ((value >> 16) & 0xF) as u8;
         let rd = ((value >> 12) & 0xF) as u8;
 
+        // s_flag must be 1 for opcode 8-B
+        if !s_flag && matches!(opcode, DataProcessingOpcode::TST | DataProcessingOpcode::TEQ | DataProcessingOpcode::CMP | DataProcessingOpcode::CMN) {
+            return Err(InstructionError::InvalidInstruction(value));
+        }
 
         let operand = if immediate {
             // Immediate as 2nd Operand
