@@ -1,11 +1,12 @@
 
 use core::fmt;
+use std::collections::HashSet;
 
 use strum_macros::Display;
 
 use crate::{instruction::{Condition, DecodeInstruction, Instruction, InstructionError}, memory::MemoryBus, register::{ReadRegister, RegisterCell, RegisterSet, WriteRegister, CPSR}};
 
-use super::{get_s_flag, is_data_processing_instruction, ShiftBy, ShiftResult, ShiftType};
+use super::{get_s_flag, is_data_processing_instruction, shift, ShiftBy, ShiftResult, ShiftType};
 
 #[derive(Debug, Clone)]
 pub struct DataProccessingInstruction {
@@ -45,9 +46,17 @@ impl DataProccessingInstruction {
         let cpsr = register_set.cpsr.read().ok()?;
         CPSR::from_bits(cpsr)
     }
+
+    pub fn is_logical(&self) -> bool {
+        self.opcode().is_logical()
+    }
+
+    pub fn is_arithmetic(&self) -> bool {
+        self.opcode().is_arithmetic()
+    }
 }
 
-#[derive(Debug, Clone, Display, PartialEq, Eq)]
+#[derive(Debug, Clone, Display, PartialEq, Eq, Hash)]
 pub enum DataProcessingOpcode {
     AND,
     EOR,
@@ -66,6 +75,22 @@ pub enum DataProcessingOpcode {
     BIC,
     MVN,
     Invalid,
+}
+
+impl DataProcessingOpcode {
+    pub fn is_logical(&self) -> bool {
+        match self {
+            DataProcessingOpcode::AND | DataProcessingOpcode::EOR | DataProcessingOpcode::TST | DataProcessingOpcode::TEQ | DataProcessingOpcode::ORR | DataProcessingOpcode::MOV | DataProcessingOpcode::BIC | DataProcessingOpcode::MVN => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_arithmetic(&self) -> bool {
+        match self {
+            DataProcessingOpcode::SUB | DataProcessingOpcode::RSB | DataProcessingOpcode::ADD | DataProcessingOpcode::ADC | DataProcessingOpcode::SBC | DataProcessingOpcode::RSC | DataProcessingOpcode::CMP | DataProcessingOpcode::CMN => true,
+            _ => false,
+        }
+    }
 }
 
 impl From<u8> for DataProcessingOpcode {
@@ -91,7 +116,6 @@ impl From<u8> for DataProcessingOpcode {
         }
     }
 }
-
 
 impl Into<DataProccessingOperandResult> for ShiftResult {
     fn into(self) -> DataProccessingOperandResult {
@@ -132,8 +156,10 @@ impl DataProccessingOperandResult {
 
 impl DataProccessingOperand {
     pub fn compute(&self, register_set: &RegisterSet) -> Result<DataProccessingOperandResult, InstructionError> {
-        match self.clone() {
+        match self {
             DataProccessingOperand::Immediate { shift_amount, nn } => {
+                let shift_amount = shift_amount.clone();
+                let nn = nn.clone();
                 if shift_amount > 0 {
                     let result = nn.rotate_right(shift_amount.into()) as u32;
                     let carry = ((nn >> (shift_amount - 1)) & 1) as u32; 
@@ -143,6 +169,8 @@ impl DataProccessingOperand {
                 }
             },
             DataProccessingOperand::Register { shift_type, shift_by, rm } => {
+                let rm = rm.clone();
+                let shift_type = shift_type.clone();
                 let rm_value = register_set.get(rm)
                     .ok_or(InstructionError::InvalidRegister(rm as u32))?
                     .read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
@@ -158,9 +186,10 @@ impl DataProccessingOperand {
                 let carry_in = cspr.carry();
                 match shift_by {
                     ShiftBy::Immediate(shift_amount) => {
-                        Ok(shift_type.shift(shift_amount, rm_value, carry_in).into())
+                        Ok(shift_type.shift(shift_amount.clone(), rm_value, carry_in).into())
                     }
                     ShiftBy::Register(rs) => {
+                        let rs = rs.clone();
                         let rs = register_set.get(rs)
                             .ok_or(InstructionError::InvalidRegister(rs as u32))?;
                         let rs_value = rs.read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
@@ -258,8 +287,7 @@ impl Instruction for DataProccessingInstruction {
             .ok_or(InstructionError::InvalidRegister(self.rn as u32))?
             .read().map_err(|e| InstructionError::RegisterReadError(e.to_string()))?;
 
-        // TODO: need to set flags according to the S flag
-        let op2_result = self.operand.clone().compute(register_set)?;
+        let op2_result = self.operand.compute(register_set)?;
 
         let mut cpsr = self.cpsr(register_set).ok_or(InstructionError::InvalidCPSR())?;
 
@@ -344,11 +372,31 @@ impl Instruction for DataProccessingInstruction {
         }
 
         // flags to be set: NZc- (Negative, Zero, Carry, Overflow)
-        if self.s_flag && self.rd != 15 {
+        if self.s_flag && self.rd != 15 && self.is_logical() {
             // set zero flag
             cpsr.setz(result == 0);
             // set sign flag
             cpsr.setn((result >> 31 & 1) == 1);
+            // set carry flag of shift operation
+            if op2_result.carry.is_some() {
+                cpsr.setc(op2_result.carry.unwrap() == 1);
+            }
+        }
+
+        if self.s_flag && self.rd != 15 && self.is_arithmetic() {
+            // set zero flag
+            cpsr.setz(result == 0);
+            // set sign flag
+            cpsr.setn((result >> 31 & 1) == 1);
+            // set carry flag of shift operation
+            if op2_result.carry.is_some() {
+                cpsr.setc(op2_result.carry.unwrap() == 1);
+            }
+            // set overflow flag
+            let rn_sign = (rn_value >> 31) & 1;
+            let op2_sign = (op2_result.result >> 31) & 1;
+            let result_sign = (result >> 31) & 1;
+            cpsr.setv((rn_sign == op2_sign) && (rn_sign != result_sign));
         }
         Ok(())
     }
